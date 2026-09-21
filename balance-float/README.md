@@ -101,7 +101,7 @@ configs/
     zhipu.json           # 首次保存智谱账户时自动创建
     models.json          # 主流模型标准字段表（不是账户文件，不参与扫描）
     ...                  # 后续 openrouter.json、siliconflow.json 等
-`
+```
 
 `models.json` 与账户文件同目录但不参与账户加载，结构是：
 
@@ -121,7 +121,7 @@ configs/
 ```
 
 字段标题取自 `fields`，`models[].fields` 的键顺序就是页面上的行顺序；`category` 只用来分组，认不出的归到「其他」。
-当前内置八个标准字段：API Key、接口链接、请求地址、模型 ID、Team ID、Team 连接、额度端口、控制台；值一律为空，等你按站点填。``
+当前内置八个标准字段：API Key、接口链接、请求地址、模型 ID、Team ID、Team 连接、额度端口、控制台；值一律为空，等你按站点填。
 
 - 每个文件格式都是 `{"accounts": [账户...]}`，账户字段与下文各类型示例一致。
 - 存在 `configs/` 目录时旧版 `config.json` 不再读取；没有 `configs/` 时自动回退旧版单文件。
