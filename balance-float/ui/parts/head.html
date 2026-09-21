@@ -1,0 +1,78 @@
+<head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_standard" name="shell-type"><title>Token 中转监控</title><link href="vendor/gfonts.css" rel="stylesheet"><link href="vendor/icons.css" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="vendor/tailwind.js"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"outline-variant":"#e5e7eb","on-surface":"#1d1d1f","on-surface-variant":"#6e6e73","surface-variant":"#f5f5f7","surface-container-high":"#eef0f4","inverse-on-surface":"#ffffff","error":"#ff3b30","primary":"#0071e3","inverse-surface":"#1d1d1f","on-error":"#ffffff","surface-dim":"#e8ecf2","secondary":"#5856d6","tertiary":"#34c759","outline":"#aeaeb2","surface-bright":"#ffffff","surface-container-lowest":"#ffffff","tertiary-container":"#e1f9e8","surface-container":"#f2f4f8","on-primary":"#ffffff","primary-container":"#0077ed","surface-container-low":"#fbfcfe","background":"#f2f4f8","surface":"#fbfcfe","surface-container-highest":"#e5e7ec","ink":"@color.ink","ink2":"@color.ink2","muted":"@color.muted","faint":"@color.faint","accent":"@color.accent","accentHover":"@color.accentHover","accentLight":"@color.accentLight","danger":"@color.danger","dangerLight":"@color.dangerLight","dangerWash":"@color.dangerWash","ok":"@color.ok","okText":"@color.okText","iris":"@color.iris","irisLight":"@color.irisLight","azure":"@color.azure","azureLight":"@color.azureLight","grass":"@color.grass","flame":"@color.flame","flameDeep":"@color.flameDeep","flameLight":"@color.flameLight","deepseek":"@color.deepseek","deepseekLight":"@color.deepseekLight","kimi":"@color.kimi","kimiLight":"@color.kimiLight","glm":"@color.glm","glmLight":"@color.glmLight","glmAlt":"@color.glmAlt"},borderRadius:{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","2xl":"1rem","full":"9999px"},spacing:{"space-xs":"0.25rem","gutter":"0.5rem","space-md":"0.75rem","space-sm":"0.375rem","space-xl":"1.25rem","space-lg":"1rem","margin":"0.75rem"},fontFamily:{"label-lg":["JetBrains Mono"],"body-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"label-md":["JetBrains Mono"],"headline-lg":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"label-sm":["JetBrains Mono"]},fontSize:{"label-lg":["14px",{"lineHeight":"18px","fontWeight":"600"}],"body-md":["12px",{"lineHeight":"16px","fontWeight":"400"}],"headline-sm":["14px",{"lineHeight":"20px","fontWeight":"600"}],"body-sm":["11px",{"lineHeight":"14px","fontWeight":"400"}],"label-md":["12px",{"lineHeight":"16px","fontWeight":"500"}],"headline-lg":["22px",{"lineHeight":"28px","fontWeight":"700"}],"body-lg":["13px",{"lineHeight":"18px","fontWeight":"500"}],"headline-md":["16px",{"lineHeight":"22px","fontWeight":"600"}],"label-sm":["10px",{"lineHeight":"12px","fontWeight":"500"}]}}}}</script><style>
+/* iOS Fluent & Light Keyframes */
+:root {
+  --fluent-bezier: @motion.curve;
+  --fluent-duration: @motion.duration;
+}
+
+@keyframes indicator-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px rgba(52,199,89,0.7); }
+  50% { opacity: 0.45; transform: scale(0.92); box-shadow: 0 0 2px rgba(52,199,89,0.25); }
+}
+.animate-indicator-breathe {
+  animation: indicator-breathe 2s ease-in-out infinite;
+}
+
+@keyframes binary-blink-2s {
+  0%, 49.9% { opacity: 1; }
+  50%, 100% { opacity: 0.3; }
+}
+.animate-binary-blink-2s {
+  animation: binary-blink-2s 2s steps(1, end) infinite;
+}
+
+/* iOS Frosted Glass Morphing & Hover Micro-Interactions */
+.fluent-hover-card {
+  transition: transform 200ms ease-out, border-color 200ms ease-out, background-color 200ms ease-out, box-shadow 200ms ease-out;
+}
+.fluent-hover-card:hover {
+  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.09), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.fluent-morph-widget {
+  transition: width var(--fluent-duration) var(--fluent-bezier),
+              height var(--fluent-duration) var(--fluent-bezier),
+              border-radius var(--fluent-duration) var(--fluent-bezier),
+              box-shadow var(--fluent-duration) var(--fluent-bezier),
+              transform 200ms ease-out;
+  transform-origin: top center;
+  will-change: width, height, transform;
+}
+
+.ios-glass-card {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.07), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+</style><style id="runtime-css">
+/* ===== 运行时适配层: 悬浮窗内只显示当前状态(收起/展开), 隐藏演示背景与弹窗; 浏览器预览(body.preview)保持设计稿原样 ===== */
+body.rt { background: transparent !important; overflow: hidden; }
+body.rt #previewbg { display: none; }
+body.rt #stageouter { display: block; min-height: 0; padding: 0; }
+body.rt #stage { display: block; }
+body.rt #modalWrap { display: none; }
+body.rt #collapsedWrap, body.rt #expandedWrap { display: none; }
+body.rt.is-collapsed #collapsedWrap { display: block; }
+body.rt.is-expanded #expandedWrap { display: block; }
+@keyframes morph-in { from { transform: scale(0.94); opacity: 0.4; } to { transform: none; opacity: 1; } }
+body.rt.is-collapsed #collapsedWrap > div:last-child,
+body.rt.is-expanded #expandedWrap > div:last-child { animation: morph-in var(--fluent-duration) var(--fluent-bezier); }
+body.rt .fluent-hover-card:hover { transform: none; }
+/* 悬浮窗外层是方形窗口区域, 卡片自带的大范围投影会被裁成方形硬边,
+   四角因此露出一个"方框"。运行时去掉投影与装饰光晕, 圆角只由卡片边框表现。 */
+body.rt .ios-glass-card { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6); }
+body.rt #collapsedWrap > div:first-child,
+body.rt #expandedWrap > div:first-child { display: none; }
+/* 选中删除模式: 行内上移/下移按钮让位给勾选; 拖拽手柄热区放大到 21px, 外观不变 */
+body.is-deleting [data-op] { display: none; }
+body:not(.is-deleting) [data-grip] { padding: 4px; margin: -4px; }
+/* 接入页: 与收起/展开并列的第三种窗口状态, 卡片宽度与模板一致, 高度由 JS 按内容上报 */
+body.rt #pageWrap { display: none; }
+body.rt.is-page #pageWrap { display: block; }
+body.rt.is-page #collapsedWrap, body.rt.is-page #expandedWrap { display: none; }
+body.rt #pageWrap > div:first-child { display: none; }
+body.rt.is-page #pageWrap > div:last-child { animation: morph-in var(--fluent-duration) var(--fluent-bezier); }
+</style></head>

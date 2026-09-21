@@ -1,0 +1,23 @@
+# 本机存档: 设计稿、可行性分析、交接与排查文档、
+# 旧凭据压缩包、本机临时排查脚本, 都不进版本库
+_本地存档/
+
+# 凭据: configs 下的账户文件含真实 api_key / access_token, 绝不入库
+# (打包脚本 build_release.py 会用空模板重建这些文件)
+balance-float/configs/*.json
+balance-float/configs/official/*.json
+!balance-float/configs/official/models.json
+balance-float/configs/**/*.bak
+
+# 构建产物与缓存
+balance-float/dist/
+balance-float/.build/
+balance-float/.twtest/
+balance-float/__pycache__/
+*.pyc
+
+# 依赖与包管理器缓存
+node_modules/
+.pnpm-store/
+.twtest/
+.idea/

@@ -1,0 +1,190 @@
+{
+  "fields": {
+    "api_key": {
+      "title": "API Key",
+      "hint": "控制台生成的密钥",
+      "icon": "key"
+    },
+    "api_url": {
+      "title": "接口链接",
+      "hint": "接口/文档地址",
+      "icon": "link"
+    },
+    "base_url": {
+      "title": "请求地址",
+      "hint": "OpenAI 兼容端点根地址",
+      "icon": "link"
+    },
+    "model_id": {
+      "title": "模型 ID",
+      "hint": "请求体里的 model 字段",
+      "icon": "code"
+    },
+    "team_id": {
+      "title": "Team ID",
+      "hint": "团队或组织标识",
+      "icon": "fingerprint"
+    },
+    "team_url": {
+      "title": "Team 连接",
+      "hint": "团队管理页地址",
+      "icon": "group"
+    },
+    "quota_url": {
+      "title": "额度端口",
+      "hint": "余额/用量查询地址",
+      "icon": "calculate"
+    },
+    "console": {
+      "title": "控制台",
+      "hint": "后台登录地址",
+      "icon": "badge"
+    }
+  },
+  "models": [
+    {
+      "key": "deepseek",
+      "name": "DeepSeek",
+      "category": "官方直连",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "moonshot",
+      "name": "Kimi",
+      "category": "官方直连",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "zhipu",
+      "name": "GLM",
+      "category": "官方直连",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "glm-team",
+      "name": "GLM Team",
+      "category": "团队/企业版",
+      "fields": {
+        "api_key": "",
+        "team_id": "",
+        "team_url": "",
+        "base_url": "",
+        "model_id": ""
+      }
+    },
+    {
+      "key": "openrouter",
+      "name": "OpenRouter",
+      "category": "聚合平台",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "siliconflow",
+      "name": "硅基流动",
+      "category": "聚合平台",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "together",
+      "name": "Together",
+      "category": "聚合平台",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "volcengine",
+      "name": "火山方舟",
+      "category": "云厂商",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "dashscope",
+      "name": "百炼 / 通义",
+      "category": "云厂商",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "hunyuan",
+      "name": "腾讯混元",
+      "category": "云厂商",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "qianfan",
+      "name": "百度千帆",
+      "category": "云厂商",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    },
+    {
+      "key": "spark",
+      "name": "讯飞星火",
+      "category": "云厂商",
+      "fields": {
+        "api_key": "",
+        "base_url": "",
+        "model_id": "",
+        "api_url": "",
+        "console": ""
+      }
+    }
+  ]
+}

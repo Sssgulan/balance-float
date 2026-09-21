@@ -1,0 +1,1287 @@
+<!DOCTYPE html><html lang="zh-CN" style=""><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_standard" name="shell-type"><title>Token 中转监控</title><link href="vendor/gfonts.css" rel="stylesheet"><link href="vendor/icons.css" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="vendor/tailwind.js"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"outline-variant":"#e5e7eb","on-surface":"#1d1d1f","on-surface-variant":"#6e6e73","surface-variant":"#f5f5f7","surface-container-high":"#eef0f4","inverse-on-surface":"#ffffff","error":"#ff3b30","primary":"#0071e3","inverse-surface":"#1d1d1f","on-error":"#ffffff","surface-dim":"#e8ecf2","secondary":"#5856d6","tertiary":"#34c759","outline":"#aeaeb2","surface-bright":"#ffffff","surface-container-lowest":"#ffffff","tertiary-container":"#e1f9e8","surface-container":"#f2f4f8","on-primary":"#ffffff","primary-container":"#0077ed","surface-container-low":"#fbfcfe","background":"#f2f4f8","surface":"#fbfcfe","surface-container-highest":"#e5e7ec","ink":"#1d1d1f","ink2":"#6e6e73","muted":"#86868b","faint":"#aeaeb2","accent":"#0071e3","accentHover":"#0077ed","accentLight":"#40a9ff","danger":"#ff3b30","dangerLight":"#ff6b63","dangerWash":"#ffebea","ok":"#34c759","okText":"#248a3d","iris":"#5856d6","irisLight":"#af52de","azure":"#0284c7","azureLight":"#38bdf8","grass":"#16a34a","flame":"#ea580c","flameDeep":"#f97316","flameLight":"#fb923c","deepseek":"#4d6bfe","deepseekLight":"#7f97ff","kimi":"#1d1d1f","kimiLight":"#6e6e73","glm":"#3859ff","glmLight":"#7d92ff","glmAlt":"#3d5afe"},borderRadius:{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","2xl":"1rem","full":"9999px"},spacing:{"space-xs":"0.25rem","gutter":"0.5rem","space-md":"0.75rem","space-sm":"0.375rem","space-xl":"1.25rem","space-lg":"1rem","margin":"0.75rem"},fontFamily:{"label-lg":["JetBrains Mono"],"body-md":["Plus Jakarta Sans"],"headline-sm":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"label-md":["JetBrains Mono"],"headline-lg":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"label-sm":["JetBrains Mono"]},fontSize:{"label-lg":["14px",{"lineHeight":"18px","fontWeight":"600"}],"body-md":["12px",{"lineHeight":"16px","fontWeight":"400"}],"headline-sm":["14px",{"lineHeight":"20px","fontWeight":"600"}],"body-sm":["11px",{"lineHeight":"14px","fontWeight":"400"}],"label-md":["12px",{"lineHeight":"16px","fontWeight":"500"}],"headline-lg":["22px",{"lineHeight":"28px","fontWeight":"700"}],"body-lg":["13px",{"lineHeight":"18px","fontWeight":"500"}],"headline-md":["16px",{"lineHeight":"22px","fontWeight":"600"}],"label-sm":["10px",{"lineHeight":"12px","fontWeight":"500"}]}}}}</script><style>
+/* iOS Fluent & Light Keyframes */
+:root {
+  --fluent-bezier: cubic-bezier(0.16, 1, 0.3, 1);
+  --fluent-duration: 380ms;
+}
+
+@keyframes indicator-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px rgba(52,199,89,0.7); }
+  50% { opacity: 0.45; transform: scale(0.92); box-shadow: 0 0 2px rgba(52,199,89,0.25); }
+}
+.animate-indicator-breathe {
+  animation: indicator-breathe 2s ease-in-out infinite;
+}
+
+@keyframes binary-blink-2s {
+  0%, 49.9% { opacity: 1; }
+  50%, 100% { opacity: 0.3; }
+}
+.animate-binary-blink-2s {
+  animation: binary-blink-2s 2s steps(1, end) infinite;
+}
+
+/* iOS Frosted Glass Morphing & Hover Micro-Interactions */
+.fluent-hover-card {
+  transition: transform 200ms ease-out, border-color 200ms ease-out, background-color 200ms ease-out, box-shadow 200ms ease-out;
+}
+.fluent-hover-card:hover {
+  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.09), 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.fluent-morph-widget {
+  transition: width var(--fluent-duration) var(--fluent-bezier),
+              height var(--fluent-duration) var(--fluent-bezier),
+              border-radius var(--fluent-duration) var(--fluent-bezier),
+              box-shadow var(--fluent-duration) var(--fluent-bezier),
+              transform 200ms ease-out;
+  transform-origin: top center;
+  will-change: width, height, transform;
+}
+
+.ios-glass-card {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.07), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+</style><style id="runtime-css">
+/* ===== 运行时适配层: 悬浮窗内只显示当前状态(收起/展开), 隐藏演示背景与弹窗; 浏览器预览(body.preview)保持设计稿原样 ===== */
+body.rt { background: transparent !important; overflow: hidden; }
+body.rt #previewbg { display: none; }
+body.rt #stageouter { display: block; min-height: 0; padding: 0; }
+body.rt #stage { display: block; }
+body.rt #modalWrap { display: none; }
+body.rt #collapsedWrap, body.rt #expandedWrap { display: none; }
+body.rt.is-collapsed #collapsedWrap { display: block; }
+body.rt.is-expanded #expandedWrap { display: block; }
+@keyframes morph-in { from { transform: scale(0.94); opacity: 0.4; } to { transform: none; opacity: 1; } }
+body.rt.is-collapsed #collapsedWrap > div:last-child,
+body.rt.is-expanded #expandedWrap > div:last-child { animation: morph-in var(--fluent-duration) var(--fluent-bezier); }
+body.rt .fluent-hover-card:hover { transform: none; }
+/* 悬浮窗外层是方形窗口区域, 卡片自带的大范围投影会被裁成方形硬边,
+   四角因此露出一个"方框"。运行时去掉投影与装饰光晕, 圆角只由卡片边框表现。 */
+body.rt .ios-glass-card { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6); }
+body.rt #collapsedWrap > div:first-child,
+body.rt #expandedWrap > div:first-child { display: none; }
+/* 选中删除模式: 行内上移/下移按钮让位给勾选; 拖拽手柄热区放大到 21px, 外观不变 */
+body.is-deleting [data-op] { display: none; }
+body:not(.is-deleting) [data-grip] { padding: 4px; margin: -4px; }
+/* 接入页: 与收起/展开并列的第三种窗口状态, 卡片宽度与模板一致, 高度由 JS 按内容上报 */
+body.rt #pageWrap { display: none; }
+body.rt.is-page #pageWrap { display: block; }
+body.rt.is-page #collapsedWrap, body.rt.is-page #expandedWrap { display: none; }
+body.rt #pageWrap > div:first-child { display: none; }
+body.rt.is-page #pageWrap > div:last-child { animation: morph-in var(--fluent-duration) var(--fluent-bezier); }
+</style></head><body class="bg-[#f2f4f8] text-[#1d1d1f] font-body-md text-body-md min-h-screen relative selection:bg-[#0071e3]/20 selection:text-[#0071e3] overflow-x-hidden"><div class="fixed inset-0 pointer-events-none z-0" id="previewbg"><div class="absolute inset-0 bg-gradient-to-br from-[#eef2f8] via-[#f5f3ff] to-[#e8effd]"></div><div class="absolute -top-24 left-1/6 w-[560px] h-[560px] rounded-full bg-gradient-to-tr from-blue-300/40 to-cyan-200/30 blur-[110px]"></div><div class="absolute top-1/4 -right-20 w-[520px] h-[520px] rounded-full bg-gradient-to-bl from-purple-300/35 via-pink-200/25 to-indigo-200/30 blur-[120px]"></div><div class="absolute -bottom-20 left-1/4 w-[640px] h-[520px] rounded-full bg-gradient-to-r from-emerald-200/30 via-teal-200/20 to-sky-200/30 blur-[130px]"></div><div class="absolute top-1/3 left-1/3 w-[360px] h-[360px] rounded-full bg-gradient-to-br from-amber-100/40 to-rose-200/25 blur-[90px]"></div></div><main class="relative z-10 w-full"><div class="min-h-screen w-full flex items-center justify-center p-space-xl relative z-10" id="stageouter"><div class="flex flex-col md:flex-row items-center md:items-start justify-center gap-space-xl" id="stage"><div class="relative group select-none" id="collapsedWrap"><div class="absolute -inset-1 bg-gradient-to-r from-blue-400/10 to-indigo-400/10 blur-lg opacity-60 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"></div><style>
+@keyframes dot-glow-breathe {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.7), 0 0 3px rgba(52, 199, 89, 0.8);
+    transform: scale(0.95);
+  }
+  50% {
+    box-shadow: 0 0 8px 3px rgba(52, 199, 89, 0.35), 0 0 12px 5px rgba(52, 199, 89, 0.15);
+    transform: scale(1.05);
+  }
+}
+.animate-dot-glow {
+  animation: dot-glow-breathe 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+</style><div class="relative w-[212px] h-[114px] ios-glass-card flex flex-col overflow-hidden fluent-morph-widget fluent-hover-card rounded-2xl"><div class="h-6 px-2 flex items-center justify-between shrink-0 bg-white/40 border-b border-black/[0.05]" data-drag><div class="flex items-center gap-1 shrink-0 select-none"><span class="text-[10px] font-bold text-ink tracking-tight whitespace-nowrap leading-none">Token 中转监控</span><span class="w-1.5 h-1.5 rounded-full bg-ok animate-binary-blink-2s inline-block shrink-0 shadow-[0_0_4px_rgba(52,199,89,0.6)]" id="collapseDot"></span></div><div class="flex items-center gap-0.5 shrink-0"><button class="w-4 h-4 rounded flex items-center justify-center text-muted hover:text-ink hover:bg-black/[0.05] transition-all" title="刷新服务商余额与状态" id="btnCRefresh"><span class="material-symbols-outlined text-[11px] leading-none">sync</span></button><button class="w-4 h-4 rounded flex items-center justify-center text-muted hover:text-accent hover:bg-black/[0.05] transition-all" title="展开至详情看板" id="btnCExpand"><span class="material-symbols-outlined text-[11px] leading-none">open_in_full</span></button><button class="w-4 h-4 rounded flex items-center justify-center text-muted hover:text-ink hover:bg-black/[0.05] transition-all duration-150" title="最小化" id="btnCMin"><span class="material-symbols-outlined text-[11px] leading-none">minimize</span></button><button class="w-4 h-4 rounded flex items-center justify-center text-muted hover:text-white hover:bg-danger transition-all duration-150" title="关闭" id="btnCClose"><span class="material-symbols-outlined text-[11px] leading-none">close</span></button></div></div><div class="px-1.5 pt-1.5 pb-2.5 grid grid-cols-2 gap-1.5 flex-1 items-stretch" id="tileGrid"><div class="px-2 py-1 bg-white/60 hover:bg-white/90 border border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all flex flex-col justify-between rounded-xl"><div class="flex items-center justify-between"><span class="text-[11px] text-ink font-semibold truncate leading-none">OpenAI-VIP</span><span class="w-[5px] h-[5px] rounded-full bg-ok animate-dot-glow shrink-0 inline-block"></span></div><div class="flex items-center justify-between"><span class="text-[10px] text-accent font-semibold tracking-tight">$42.50</span><span class="font-mono text-[9px] text-ok font-medium">24ms</span></div></div><div class="px-2 py-1 bg-white/60 hover:bg-white/90 border border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all flex flex-col justify-between rounded-xl"><div class="flex items-center justify-between"><span class="text-[11px] text-ink font-semibold truncate leading-none">Claude Pro</span><span class="w-[5px] h-[5px] rounded-full bg-ok animate-dot-glow shrink-0 inline-block"></span></div><div class="flex items-center justify-between"><span class="text-[10px] text-accent font-semibold tracking-tight">$18.80</span><span class="font-mono text-[9px] text-ok font-medium">32ms</span></div></div><div class="px-2 py-1 bg-white/60 hover:bg-white/90 border border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all flex flex-col justify-between rounded-xl"><div class="flex items-center justify-between"><span class="text-[11px] text-ink font-semibold truncate leading-none">DeepSeek</span><span class="w-[5px] h-[5px] rounded-full bg-ok animate-dot-glow shrink-0 inline-block"></span></div><div class="flex items-center justify-between"><span class="text-[10px] text-accent font-semibold tracking-tight">¥94.20</span><span class="font-mono text-[9px] text-ok font-medium">18ms</span></div></div><div class="px-2 py-1 bg-white/60 hover:bg-white/90 border border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all flex flex-col justify-between rounded-xl"><div class="flex items-center justify-between"><span class="text-[11px] text-ink font-semibold truncate leading-none">SiliconFlow</span><span class="w-[5px] h-[5px] rounded-full bg-ok animate-dot-glow shrink-0 inline-block"></span></div><div class="flex items-center justify-between"><span class="text-[10px] text-accent font-semibold tracking-tight">¥120.00</span><span class="font-mono text-[9px] text-ok font-medium">21ms</span></div></div></div></div></div><div class="relative group select-none" id="expandedWrap"><div class="absolute -inset-1 bg-gradient-to-br from-blue-400/15 via-transparent to-indigo-300/20 blur-xl opacity-75 rounded-2xl"></div><div class="relative ios-glass-card flex flex-col overflow-hidden fluent-morph-widget fluent-hover-card w-[304px] h-[360px] rounded-2xl" style="width: 248px; height: 248px;"><div class="h-8 px-2.5 flex items-center justify-between shrink-0 bg-white/40 border-b border-black/[0.05]" style="height: 36px; padding-left: 10px; padding-right: 10px;" data-drag><div class="flex items-center gap-1.5 shrink-0 select-none"><span class="font-headline-sm text-[12px] font-bold text-ink tracking-tight whitespace-nowrap">Token 中转监控</span><div class="h-4 px-1 flex items-center gap-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 whitespace-nowrap select-none" id="activeBadge"><span class="w-1.5 h-1.5 rounded-full bg-ok animate-binary-blink-2s inline-block shrink-0 shadow-[0_0_4px_rgba(52,199,89,0.6)]" id="expandDot"></span><span class="font-label-sm text-[10px] text-okText font-semibold tracking-tight leading-none" id="activeText">8 活跃</span></div></div><div class="flex items-center gap-px shrink-0"><div class="flex items-center gap-0.5"><button class="w-5 h-5 rounded flex items-center justify-center text-muted hover:text-ink hover:bg-black/[0.05] transition-all" title="刷新服务商余额与状态" id="btnERefresh"><span class="material-symbols-outlined text-[13px]">sync</span></button><button class="w-5 h-5 rounded flex items-center justify-center text-muted hover:text-accent hover:bg-black/[0.05] transition-all" title="收起为微型组件" id="btnECollapse"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"></path></svg></button></div><div class="w-[1px] h-3 bg-black/[0.08]"></div><div class="flex items-center gap-0.5"><button class="w-5 h-5 rounded flex items-center justify-center text-muted hover:text-ink hover:bg-black/[0.05] transition-all duration-150" title="最小化" id="btnEMin"><span class="material-symbols-outlined text-[12px]">minimize</span></button><button class="w-5 h-5 rounded flex items-center justify-center text-muted hover:text-white hover:bg-danger transition-all duration-150" title="关闭" id="btnEClose"><span class="material-symbols-outlined text-[12px]">close</span></button></div></div></div><div class="flex-1 overflow-y-auto px-2 pt-0.5 pb-0.5 flex flex-col scroll-smooth gap-px" id="rowList"><div class="group/row rounded-xl px-2.5 bg-white/65 hover:bg-white/95 border border-white/80 hover:border-blue-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all duration-150 flex flex-col shrink-0 cursor-pointer py-0.5 gap-px"><div class="flex items-center justify-between"><div class="flex items-center gap-1.5"><div class="w-5 h-5 rounded-lg bg-blue-50/90 border border-blue-100/70 flex items-center justify-center text-accent shadow-xs"><span class="material-symbols-outlined text-[13px]">psychology</span></div><span class="font-body-sm text-body-sm text-ink font-semibold leading-tight">OpenAI VIP</span></div><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md text-ink font-bold tracking-tight">$42.50</span><div class="flex items-center opacity-40 group-hover/row:opacity-100 transition-opacity"><span class="material-symbols-outlined text-[13px] text-muted hover:text-accent cursor-grab active:cursor-grabbing leading-none" title="拖拽或长按排序">drag_indicator</span></div></div></div><div class="flex items-center justify-between text-ink2 font-label-sm text-label-sm pl-6.5"><div class="flex items-center gap-1 truncate"><span class="text-muted">直连 API</span><span class="text-black/20">•</span><span>今日 $3.20 <span class="text-muted">(14.2M)</span></span></div><div class="flex items-center gap-1 shrink-0 ml-1"><div class="flex items-center opacity-0 group-hover/row:opacity-100 transition-opacity -mr-0.5"><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="上移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_up</span></button><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="下移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_down</span></button></div></div></div><div class="w-full h-[2.5px] rounded-full bg-black/[0.05] overflow-hidden"><div class="h-full bg-gradient-to-r from-accent to-accentLight rounded-full" style="width: 45%;"></div></div></div><div class="group/row rounded-xl px-2.5 bg-white/65 hover:bg-white/95 border border-white/80 hover:border-purple-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all duration-150 flex flex-col shrink-0 cursor-pointer py-0.5 gap-px"><div class="flex items-center justify-between"><div class="flex items-center gap-1.5"><div class="w-5 h-5 rounded-lg bg-purple-50/90 border border-purple-100/70 flex items-center justify-center text-iris shadow-xs"><span class="material-symbols-outlined text-[13px]">smart_toy</span></div><span class="font-body-sm text-body-sm text-ink font-semibold leading-tight">Claude Pro Relay</span></div><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md text-ink font-bold tracking-tight">$18.80</span><div class="flex items-center opacity-40 group-hover/row:opacity-100 transition-opacity"><span class="material-symbols-outlined text-[13px] text-muted hover:text-iris cursor-grab active:cursor-grabbing leading-none" title="拖拽或长按排序">drag_indicator</span></div></div></div><div class="flex items-center justify-between text-ink2 font-label-sm text-label-sm pl-6.5"><div class="flex items-center gap-1 truncate"><span class="text-muted">Anthropic 3.5</span><span class="text-black/20">•</span><span>今日 $5.60 <span class="text-muted">(8.1M)</span></span></div><div class="flex items-center gap-1 shrink-0 ml-1"><div class="flex items-center opacity-0 group-hover/row:opacity-100 transition-opacity -mr-0.5"><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="上移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_up</span></button><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="下移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_down</span></button></div></div></div><div class="w-full h-[2.5px] rounded-full bg-black/[0.05] overflow-hidden"><div class="h-full bg-gradient-to-r from-iris to-irisLight rounded-full" style="width: 68%;"></div></div></div><div class="group/row rounded-xl px-2.5 bg-white/65 hover:bg-white/95 border border-white/80 hover:border-cyan-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all duration-150 flex flex-col shrink-0 cursor-pointer py-0.5 gap-px"><div class="flex items-center justify-between"><div class="flex items-center gap-1.5"><div class="w-5 h-5 rounded-lg bg-cyan-50/90 border border-cyan-100/70 flex items-center justify-center text-azure shadow-xs"><span class="material-symbols-outlined text-[13px]">memory</span></div><span class="font-body-sm text-body-sm text-ink font-semibold leading-tight">DeepSeek-V3</span></div><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md text-ink font-bold tracking-tight">¥94.20</span><div class="flex items-center opacity-40 group-hover/row:opacity-100 transition-opacity"><span class="material-symbols-outlined text-[13px] text-muted hover:text-azure cursor-grab active:cursor-grabbing leading-none" title="拖拽或长按排序">drag_indicator</span></div></div></div><div class="flex items-center justify-between text-ink2 font-label-sm text-label-sm pl-6.5"><div class="flex items-center gap-1 truncate"><span class="text-muted">官方集群</span><span class="text-black/20">•</span><span>今日 ¥12.40 <span class="text-muted">(42.0M)</span></span></div><div class="flex items-center gap-1 shrink-0 ml-1"><div class="flex items-center opacity-0 group-hover/row:opacity-100 transition-opacity -mr-0.5"><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="上移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_up</span></button><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="下移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_down</span></button></div></div></div><div class="w-full h-[2.5px] rounded-full bg-black/[0.05] overflow-hidden"><div class="h-full bg-gradient-to-r from-azure to-azureLight rounded-full" style="width: 28%;"></div></div></div><div class="group/row rounded-xl px-2.5 bg-white/65 hover:bg-white/95 border border-white/80 hover:border-emerald-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all duration-150 flex flex-col shrink-0 cursor-pointer py-0.5 gap-px"><div class="flex items-center justify-between"><div class="flex items-center gap-1.5"><div class="w-5 h-5 rounded-lg bg-emerald-50/90 border border-emerald-100/70 flex items-center justify-center text-grass shadow-xs"><span class="material-symbols-outlined text-[13px]">bolt</span></div><span class="font-body-sm text-body-sm text-ink font-semibold leading-tight">SiliconFlow Pro</span></div><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md text-ink font-bold tracking-tight">¥120.00</span><div class="flex items-center opacity-40 group-hover/row:opacity-100 transition-opacity"><span class="material-symbols-outlined text-[13px] text-muted hover:text-grass cursor-grab active:cursor-grabbing leading-none" title="拖拽或长按排序">drag_indicator</span></div></div></div><div class="flex items-center justify-between text-ink2 font-label-sm text-label-sm pl-6.5"><div class="flex items-center gap-1 truncate"><span class="text-muted">快速推理</span><span class="text-black/20">•</span><span>今日 ¥4.80 <span class="text-muted">(19.5M)</span></span></div><div class="flex items-center gap-1 shrink-0 ml-1"><div class="flex items-center opacity-0 group-hover/row:opacity-100 transition-opacity -mr-0.5"><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="上移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_up</span></button><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="下移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_down</span></button></div></div></div><div class="w-full h-[2.5px] rounded-full bg-black/[0.05] overflow-hidden"><div class="h-full bg-gradient-to-r from-grass to-ok rounded-full" style="width: 15%;"></div></div></div><div class="group/row rounded-xl px-2.5 bg-white/65 hover:bg-white/95 border border-white/80 hover:border-amber-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all duration-150 flex flex-col shrink-0 cursor-pointer py-0.5 gap-px"><div class="flex items-center justify-between"><div class="flex items-center gap-1.5"><div class="w-5 h-5 rounded-lg bg-orange-50/90 border border-orange-100/70 flex items-center justify-center text-flame shadow-xs"><span class="material-symbols-outlined text-[13px]">brightness_medium</span></div><span class="font-body-sm text-body-sm text-ink font-semibold leading-tight">Moonshot Kimi</span></div><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md text-ink font-bold tracking-tight">¥46.50</span><div class="flex items-center opacity-40 group-hover/row:opacity-100 transition-opacity"><span class="material-symbols-outlined text-[13px] text-muted hover:text-flame cursor-grab active:cursor-grabbing leading-none" title="拖拽或长按排序">drag_indicator</span></div></div></div><div class="flex items-center justify-between text-ink2 font-label-sm text-label-sm pl-6.5"><div class="flex items-center gap-1 truncate"><span class="text-muted">长文本节点</span><span class="text-black/20">•</span><span>今日 ¥1.20 <span class="text-muted">(2.4M)</span></span></div><div class="flex items-center gap-1 shrink-0 ml-1"><div class="flex items-center opacity-0 group-hover/row:opacity-100 transition-opacity -mr-0.5"><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="上移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_up</span></button><button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="下移"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_down</span></button></div></div></div><div class="w-full h-[2.5px] rounded-full bg-black/[0.05] overflow-hidden"><div class="h-full bg-gradient-to-r from-flameDeep to-flameLight rounded-full" style="width: 20%;"></div></div></div></div><div class="px-3 py-1.5 bg-white/40 backdrop-blur-md flex items-center justify-between shrink-0 border-t border-black/[0.05]"><div class="flex items-center justify-between w-full"><div class="flex items-center gap-1"><button class="h-6 px-2.5 rounded-full bg-white/75 hover:bg-white text-ink hover:text-accent flex items-center justify-center gap-1 transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.06)] border border-white/90 hover:scale-105 active:scale-95 group select-none" title="添加中转节点" id="btnAdd"><svg class="w-3 h-3 text-ink2 group-hover:text-accent group-hover:rotate-90 transition-all duration-200" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg><span class="text-[10px] font-semibold text-ink2 group-hover:text-accent transition-colors leading-none">添加</span></button><button class="w-6 h-6 rounded-full bg-white/75 hover:bg-white text-ink2 flex items-center justify-center transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_2px_6px_rgba(0,0,0,0.06)] border border-white/90 hover:scale-105 active:scale-95 select-none" title="批量删除节点" id="btnDel"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14"></path></svg></button><button class="h-6 px-2.5 rounded-full bg-accent hover:bg-accentHover text-white flex items-center justify-center gap-1 transition-all duration-200 shadow-[0_2px_6px_rgba(0,113,227,0.25)] hover:scale-105 active:scale-95 select-none" title="删除已选节点" id="btnOk" style="display:none"><span class="material-symbols-outlined text-[13px] leading-none">check</span><span class="text-[10px] font-semibold leading-none">确定</span></button></div><div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-xs select-none" id="statusPill"><span class="w-1.5 h-1.5 rounded-full bg-ok animate-indicator-breathe inline-block shrink-0" id="statusDot"></span><span class="font-label-sm text-[10px] text-okText font-semibold tracking-tight leading-none" id="statusText">正在连接</span></div></div></div></div></div><div class="relative group select-none" id="modalWrap"><div class="absolute -inset-1 bg-gradient-to-tr from-blue-400/15 via-indigo-300/15 to-emerald-400/10 blur-xl opacity-80 pointer-events-none rounded-2xl"></div><div class="relative ios-glass-card flex flex-col overflow-hidden border border-white/90 rounded-2xl" id="pgCard"><div class="h-10 px-4 flex items-center justify-between shrink-0 bg-white/50 border-b border-black/[0.05]" style="height: 36px; padding-left: 12px; padding-right: 12px;"><div class="flex items-center gap-2 select-none"><span class="material-symbols-outlined text-[17px] text-accent">tune</span><span class="font-headline-md text-[14px] font-bold text-ink tracking-tight" id="pgTitle">添加配置</span></div><button class="w-6 h-6 rounded-full bg-black/[0.04] hover:bg-black/[0.08] active:scale-95 flex items-center justify-center text-muted hover:text-ink transition-all" title="返回" id="pgBack"><span class="material-symbols-outlined text-[13px] font-medium">close</span></button></div><div class="px-3.5 pt-3 pb-2.5 flex flex-col gap-2.5"><div class="p-1 rounded-xl bg-black/[0.04] border border-black/[0.03] flex items-center gap-0.5 select-none shrink-0" id="pgTabs"><button class="flex-1 py-1 px-1 rounded-lg transition-all text-center" data-kind="newapi">NewAPI</button><button class="flex-1 py-1 px-1 rounded-lg transition-all text-center" data-kind="official">官方接口</button><button class="flex-1 py-1 px-1 rounded-lg transition-all text-center" data-kind="generic">自定义</button><button class="flex-1 py-1 px-1 rounded-lg transition-all text-center" data-kind="ccsw">CC-SW</button><button class="flex-1 py-1 px-1 rounded-lg transition-all text-center" data-kind="ocx">OCX</button></div><div class="flex-1 min-h-0 flex flex-col gap-1" id="pgList"></div><div class="hidden flex-1 min-h-0 flex-col gap-2.5" id="pgForm"><div class="flex items-center justify-between px-0.5 shrink-0"><span class="text-[12px] font-bold text-ink tracking-tight" id="pgSection">凭证配置</span><span class="text-[10px] text-muted truncate" id="pgHint"></span></div><div class="flex flex-col gap-2 pb-0.5" id="pgFields"></div><div class="hidden flex-col gap-2 pb-0.5" id="pgExtras"></div></div><div class="flex items-center gap-1.5 pt-1.5 border-t border-black/[0.04] shrink-0"><div class="flex-1 min-w-0 text-[10px] font-semibold text-muted truncate" id="pgMsg"></div><div class="flex items-center gap-1.5 shrink-0" id="pgBtns"></div></div></div></div></div></div></div></main><div class="relative group select-none" id="pageWrap"><div class="absolute -inset-1 bg-gradient-to-tr from-blue-400/15 via-indigo-300/15 to-emerald-400/10 blur-xl opacity-80 pointer-events-none rounded-2xl"></div><div class="relative ios-glass-card flex flex-col overflow-hidden border border-white/90 rounded-2xl" style="width: 360px; height: 420px;"><div class="h-9 px-2.5 flex items-center justify-between shrink-0 bg-white/50 border-b border-black/[0.05]" data-drag><div class="flex items-center gap-2 select-none min-w-0"><span class="material-symbols-outlined text-[17px] text-accent shrink-0">tune</span><span class="font-headline-md text-[14px] font-bold text-ink tracking-tight truncate" id="pageTitle">官方接口配置</span></div><button class="w-6 h-6 rounded-full bg-black/[0.04] hover:bg-black/[0.08] active:scale-95 flex items-center justify-center text-muted hover:text-ink transition-all shrink-0" title="返回" id="pageClose"><span class="material-symbols-outlined text-[13px] font-medium">arrow_back</span></button></div><div class="px-3.5 pt-3 pb-2.5 flex flex-col gap-2.5 flex-1 min-h-0"><div class="p-1 rounded-xl bg-black/[0.04] border border-black/[0.03] flex items-center gap-0.5 select-none shrink-0" id="pageTabs"><button class="flex-1 py-1 px-1 rounded-lg text-[11px] font-semibold transition-all text-center whitespace-nowrap" data-kind="official">官方接口</button><button class="flex-1 py-1 px-1 rounded-lg text-[11px] font-semibold transition-all text-center whitespace-nowrap" data-kind="newapi">NewAPI</button><button class="flex-1 py-1 px-1 rounded-lg text-[11px] font-semibold transition-all text-center whitespace-nowrap" data-kind="generic">自定义</button><button class="flex-1 py-1 px-1 rounded-lg text-[11px] font-semibold transition-all text-center whitespace-nowrap" data-kind="ccsw">CC-SW</button><button class="flex-1 py-1 px-1 rounded-lg text-[11px] font-semibold transition-all text-center whitespace-nowrap" data-kind="ocx">OCX</button></div><div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1" id="pageList"></div><div class="hidden items-center gap-1.5 shrink-0" id="pageFoot"></div><div class="hidden flex-1 min-h-0 overflow-y-auto flex-col gap-2.5" id="pageForm"><div class="flex items-center justify-between px-0.5 shrink-0"><span class="text-[12px] font-bold text-ink tracking-tight" id="pageSection">凭证配置</span><span class="text-[10px] text-muted truncate" id="pageHint"></span></div><div class="flex flex-col gap-2 pb-0.5" id="pageFields"></div><div class="hidden flex-col gap-2 pb-0.5" id="pageExtras"></div></div></div><div class="px-3.5 py-2 bg-white/40 backdrop-blur-md flex items-center gap-1.5 shrink-0 border-t border-black/[0.05]"><div class="flex-1 min-w-0 text-[10px] font-semibold truncate" id="pageMsg"></div><div class="flex items-center gap-1.5 shrink-0" id="pageBtns"></div></div></div></div>
+<script>
+(function () {
+  "use strict";
+  function $(id) { return document.getElementById(id); }
+  var MODE = null; /* rt = 悬浮窗运行时, preview = 浏览器预览(展示设计稿原样) */
+  var S = { expanded: false, page: false, tab: "official", stations: [], accounts: [], traffic: null, settings: {}, loading: true, lastUpdated: "" };
+  /* 展开列表的行状态: 拖拽排序 / 批量删除 */
+  var delMode = false;   /* 减号进入的选定删除模式 */
+  var sel = {};          /* 已勾选的账户 id */
+  var dead = {};         /* 已删除, 但后台可能还回传一次的 id */
+  var dragIdx = -1;      /* 正在拖拽的行下标, -1 为未拖拽 */
+  var dragMoved = false;
+  var suppressClick = false;
+
+  /* ---------- pywebview 桥 ---------- */
+  function bridge() { return (window.pywebview && window.pywebview.api) || null; }
+  function whenBridge(timeoutMs) {
+    return new Promise(function (resolve) {
+      var t0 = Date.now();
+      (function poll() {
+        var api = bridge();
+        if (api) return resolve(api);
+        if (Date.now() - t0 > (timeoutMs || 3000)) return resolve(null);
+        setTimeout(poll, 40);
+      })();
+    });
+  }
+  /* 接入页也是窗口状态之一: 尺寸上报取它, 否则窗口会停在收起态的 212x114 */
+  function activeWrap() { return $(S.page ? "pageWrap" : (S.expanded ? "expandedWrap" : "collapsedWrap")); }
+  function reportSize() {
+    if (MODE !== "rt") return;
+    var api = bridge(); var wrap = activeWrap();
+    /* 只量真实卡片: 包裹层是块级元素, 宽度会撑满视口, 上报它等于把窗口宽度自引用成当前视口宽 */
+    var el = (wrap && wrap.querySelector(".ios-glass-card")) || wrap;
+    if (!api || !el || !el.offsetWidth || typeof api.resize !== "function") return;
+    /* 连同卡片的圆角半径一起上报: 原生层据此把窗口裁剪成卡片本身的圆角形状 */
+    var radius = 0;
+    try { radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0; } catch (e) {}
+    api.resize(Math.ceil(el.offsetWidth), Math.ceil(el.offsetHeight), radius);
+  }
+
+  /* ---------- 格式化(字段与 /api/state 对应, 不虚构) ---------- */
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      var k = c.charCodeAt(0);
+      if (k === 38) return "&amp;";
+      if (k === 60) return "&lt;";
+      if (k === 62) return "&gt;";
+      if (k === 34) return "&quot;";
+      return "&#39;";
+    });
+  }
+  function fmtMoney(v, unit) {
+    if (v === null || v === undefined || v === "") return "—";
+    var n = Number(v);
+    if (!Number.isFinite(n)) return "—";
+    var s = Math.abs(n) >= 1000 ? n.toFixed(1) : n.toFixed(2);
+    var u = String(unit || "").toUpperCase();
+    if (u === "CNY" || u === "RMB" || u === "¥") return "¥" + s;
+    if (u === "USD" || u === "$") return "$" + s;
+    return s + (unit && u !== "NONE" ? unit : "");
+  }
+  function fmtTok(v) {
+    var n = Number(v) || 0;
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+    return String(n);
+  }
+  function clamp(v) { return Math.max(0, Math.min(100, v)); }
+  function pctOf(st) {
+    var rem = Number(st.remaining), used = Number(st.used), total = Number(st.total);
+    if (Number.isFinite(total) && total > 0 && Number.isFinite(rem)) return clamp((rem / total) * 100);
+    if (Number.isFinite(rem) && Number.isFinite(used) && rem + used > 0) return clamp((rem / (rem + used)) * 100);
+    return st.ok ? 100 : 0;
+  }
+  function trafficOf(st) {
+    if (st.traffic) return st.traffic;
+    if (!S.traffic || !S.traffic.available || !S.traffic.by_name) return null;
+    return S.traffic.by_name[st.name] || null;
+  }
+  var TYPE_LABELS = { newapi: "NewAPI", deepseek: "官方直连", moonshot: "官方直连", zhipu: "官方直连", generic: "自定义", ccsw: "CC-SW", ocx: "OCX" };
+  function typeLabelOf(st, i) {
+    if (st.plan) return st.plan;
+    var acc = S.accounts[i];
+    return TYPE_LABELS[(acc && acc.type) || ""] || "直连 API";
+  }
+  /* 图标与配色按账户身份取, 不按行号: 上移/下移时图标与配色跟着行一起走。 */
+  var ROW_ACCENTS = [
+    { chip: "bg-blue-50/90 border-blue-100/70 text-accent", hover: "hover:border-blue-200/80", grip: "hover:text-accent", grad: "from-accent to-accentLight" },
+    { chip: "bg-purple-50/90 border-purple-100/70 text-iris", hover: "hover:border-purple-200/80", grip: "hover:text-iris", grad: "from-iris to-irisLight" },
+    { chip: "bg-cyan-50/90 border-cyan-100/70 text-azure", hover: "hover:border-cyan-200/80", grip: "hover:text-azure", grad: "from-azure to-azureLight" },
+    { chip: "bg-emerald-50/90 border-emerald-100/70 text-grass", hover: "hover:border-emerald-200/80", grip: "hover:text-grass", grad: "from-grass to-ok" },
+    { chip: "bg-orange-50/90 border-orange-100/70 text-flame", hover: "hover:border-amber-200/80", grip: "hover:text-flame", grad: "from-flameDeep to-flameLight" }
+  ];
+  /* 官方通道沿用官方图标(重绘为单色, 尺寸对齐 20px 圆角方块), 底色取品牌色调淡 */
+  var BRAND_ACCENTS = {
+    deepseek: { logoSvg: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="w-3.5 h-3.5"><path d="M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 01-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 00-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 01-.465.137 9.597 9.597 0 00-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 001.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 011.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306 0 01.415-.287.302.302 0 01.2.288.306.306 0 01-.31.307.303.303 0 01-.304-.308zm3.11 1.596c-.2.081-.399.151-.59.16a1.245 1.245 0 01-.798-.254c-.274-.23-.47-.358-.552-.758a1.73 1.73 0 01.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559 0 01-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136 1.146.016.352.144.618.408 1.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z"/></svg>', chip: "bg-deepseek/10 border-deepseek/20 text-deepseek", hover: "hover:border-deepseek/30", grip: "hover:text-deepseek", grad: "from-deepseek to-deepseekLight" },
+    moonshot: { logoSvg: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="w-3.5 h-3.5"><path d="M1.052 16.916l9.539 2.552a21.007 21.007 0 00.06 2.033l5.956 1.593a11.997 11.997 0 01-5.586.865l-.18-.016-.044-.004-.084-.009-.094-.01a11.605 11.605 0 01-.157-.02l-.107-.014-.11-.016a11.962 11.962 0 01-.32-.051l-.042-.008-.075-.013-.107-.02-.07-.015-.093-.019-.075-.016-.095-.02-.097-.023-.094-.022-.068-.017-.088-.022-.09-.024-.095-.025-.082-.023-.109-.03-.062-.02-.084-.025-.093-.028-.105-.034-.058-.019-.08-.026-.09-.031-.066-.024a6.293 6.293 0 01-.044-.015l-.068-.025-.101-.037-.057-.022-.08-.03-.087-.035-.088-.035-.079-.032-.095-.04-.063-.028-.063-.027a5.655 5.655 0 01-.041-.018l-.066-.03-.103-.047-.052-.024-.096-.046-.062-.03-.084-.04-.086-.044-.093-.047-.052-.027-.103-.055-.057-.03-.058-.032a6.49 6.49 0 01-.046-.026l-.094-.053-.06-.034-.051-.03-.072-.041-.082-.05-.093-.056-.052-.032-.084-.053-.061-.039-.079-.05-.07-.047-.053-.035a7.785 7.785 0 01-.054-.036l-.044-.03-.044-.03a6.066 6.066 0 01-.04-.028l-.057-.04-.076-.054-.069-.05-.074-.054-.056-.042-.076-.057-.076-.059-.086-.067-.045-.035-.064-.052-.074-.06-.089-.073-.046-.039-.046-.039a7.516 7.516 0 01-.043-.037l-.045-.04-.061-.053-.07-.062-.068-.06-.062-.058-.067-.062-.053-.05-.088-.084a13.28 13.28 0 01-.099-.097l-.029-.028-.041-.042-.069-.07-.05-.051-.05-.053a6.457 6.457 0 01-.168-.179l-.08-.088-.062-.07-.071-.08-.042-.049-.053-.062-.058-.068-.046-.056a7.175 7.175 0 01-.027-.033l-.045-.055-.066-.082-.041-.052-.05-.064-.02-.025a11.99 11.99 0 01-1.44-2.402zm-1.02-5.794l11.353 3.037a20.468 20.468 0 00-.469 2.011l10.817 2.894a12.076 12.076 0 01-1.845 2.005L.657 15.923l-.016-.046-.035-.104a11.965 11.965 0 01-.05-.153l-.007-.023a11.896 11.896 0 01-.207-.741l-.03-.126-.018-.08-.021-.097-.018-.081-.018-.09-.017-.084-.018-.094c-.026-.141-.05-.283-.071-.426l-.017-.118-.011-.083-.013-.102a12.01 12.01 0 01-.019-.161l-.005-.047a12.12 12.12 0 01-.034-2.145zm1.593-5.15l11.948 3.196c-.368.605-.705 1.231-1.01 1.875l11.295 3.022c-.142.82-.368 1.612-.668 2.365l-11.55-3.09L.124 10.26l.015-.1.008-.049.01-.067.015-.087.018-.098c.026-.148.056-.295.088-.442l.028-.124.02-.085.024-.097c.022-.09.045-.18.07-.268l.028-.102.023-.083.03-.1.025-.082.03-.096.026-.082.031-.095a11.896 11.896 0 011.01-2.232zm4.442-4.4L17.352 4.59a20.77 20.77 0 00-1.688 1.721l7.823 2.093c.267.852.442 1.744.513 2.665L2.106 5.213l.045-.065.027-.04.04-.055.046-.065.055-.076.054-.072.064-.086.05-.065.057-.073.055-.07.06-.074.055-.069.065-.077.054-.066.066-.077.053-.06.072-.082.053-.06.067-.074.054-.058.073-.078.058-.06.063-.067.168-.17.1-.098.059-.056.076-.071a12.084 12.084 0 012.272-1.677zM12.017 0h.097l.082.001.069.001.054.002.068.002.046.001.076.003.047.002.06.003.054.002.087.005.105.007.144.011.088.007.044.004.077.008.082.008.047.005.102.012.05.006.108.014.081.01.042.006.065.01.207.032.07.012.065.011.14.026.092.018.11.022.046.01.075.016.041.01L14.7.3l.042.01.065.015.049.012.071.017.096.024.112.03.113.03.113.032.05.015.07.02.078.024.073.023.05.016.05.016.076.025.099.033.102.036.048.017.064.023.093.034.11.041.116.045.1.04.047.02.06.024.041.018.063.026.04.018.057.025.11.048.1.046.074.035.075.036.06.028.092.046.091.045.102.052.053.028.049.026.046.024.06.033.041.022.052.029.088.05.106.06.087.051.057.034.053.032.096.059.088.055.098.062.036.024.064.041.084.056.04.027.062.042.062.043.023.017c.054.037.108.075.161.114l.083.06.065.048.056.043.086.065.082.064.04.03.05.041.086.069.079.065.085.071c.712.6 1.353 1.283 1.909 2.031L7.222.994l.062-.027.065-.028.081-.034.086-.035c.113-.045.227-.09.341-.131l.096-.035.093-.033.084-.03.096-.031c.087-.03.176-.058.264-.085l.091-.027.086-.025.102-.03.085-.023.1-.026L9.04.37l.09-.023.091-.022.095-.022.09-.02.098-.021.091-.02.095-.018.092-.018.1-.018.091-.016.098-.017.092-.014.097-.015.092-.013.102-.013.091-.012.105-.012.09-.01.105-.01c.093-.01.186-.018.28-.024l.106-.008.09-.005.11-.006.093-.004.1-.004.097-.002.099-.002.197-.002z"/></svg>', chip: "bg-black/[0.05] border-black/10 text-kimi", hover: "hover:border-black/20", grip: "hover:text-kimi", grad: "from-kimi to-kimiLight" },
+    zhipu: { logoSvg: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="w-3.5 h-3.5"><path d="M11.991 23.503a.24.24 0 00-.244.248.24.24 0 00.244.249.24.24 0 00.245-.249.24.24 0 00-.22-.247l-.025-.001zM9.671 5.365a1.697 1.697 0 011.099 2.132l-.071.172-.016.04-.018.054c-.07.16-.104.32-.104.498-.035.71.47 1.279 1.186 1.314h.366c1.309.053 2.338 1.173 2.286 2.523-.052 1.332-1.152 2.38-2.478 2.327h-.174c-.715.018-1.274.64-1.239 1.368 0 .124.018.23.053.337.209.373.54.658.96.8.75.23 1.517-.125 1.9-.782l.018-.035c.402-.64 1.17-.96 1.92-.711.854.284 1.378 1.226 1.099 2.167a1.661 1.661 0 01-2.077 1.102 1.711 1.711 0 01-.907-.711l-.017-.035c-.2-.323-.463-.58-.851-.711l-.056-.018a1.646 1.646 0 00-1.954.746 1.66 1.66 0 01-1.065.764 1.677 1.677 0 01-1.989-1.279c-.209-.906.332-1.83 1.257-2.043a1.51 1.51 0 01.296-.035h.018c.68-.071 1.151-.622 1.116-1.333a1.307 1.307 0 00-.227-.693 2.515 2.515 0 01-.366-1.403 2.39 2.39 0 01.366-1.208c.14-.195.21-.444.227-.693.018-.71-.506-1.261-1.186-1.332l-.07-.018a1.43 1.43 0 01-.299-.07l-.05-.019a1.7 1.7 0 01-1.047-2.114 1.68 1.68 0 012.094-1.101zm-5.575 10.11c.26-.264.639-.367.994-.27.355.096.633.379.728.74.095.362-.007.748-.267 1.013-.402.41-1.053.41-1.455 0a1.062 1.062 0 010-1.482zm14.845-.294c.359-.09.738.024.992.297.254.274.344.665.237 1.025-.107.36-.396.634-.756.718-.551.128-1.1-.22-1.23-.781a1.05 1.05 0 01.757-1.26zm-.064-4.39c.314.32.49.753.49 1.206 0 .452-.176.886-.49 1.206-.315.32-.74.5-1.185.5-.444 0-.87-.18-1.184-.5a1.727 1.727 0 010-2.412 1.654 1.654 0 012.369 0zm-11.243.163c.364.484.447 1.128.218 1.691a1.665 1.665 0 01-2.188.923c-.855-.36-1.26-1.358-.907-2.228a1.68 1.68 0 011.33-1.038c.593-.08 1.183.169 1.547.652zm11.545-4.221c.368 0 .708.2.892.524.184.324.184.724 0 1.048a1.026 1.026 0 01-.892.524c-.568 0-1.03-.47-1.03-1.048 0-.579.462-1.048 1.03-1.048zm-14.358 0c.368 0 .707.2.891.524.184.324.184.724 0 1.048a1.026 1.026 0 01-.891.524c-.569 0-1.03-.47-1.03-1.048 0-.579.461-1.048 1.03-1.048zm10.031-1.475c.925 0 1.675.764 1.675 1.706s-.75 1.705-1.675 1.705-1.674-.763-1.674-1.705c0-.942.75-1.706 1.674-1.706zm-2.626-.684c.362-.082.653-.356.761-.718a1.062 1.062 0 00-.238-1.028 1.017 1.017 0 00-.996-.294c-.547.14-.881.7-.752 1.257.13.558.675.907 1.225.783zm0 16.876c.359-.087.644-.36.75-.72a1.062 1.062 0 00-.237-1.019 1.018 1.018 0 00-.985-.301 1.037 1.037 0 00-.762.717c-.108.361-.017.754.239 1.028.245.263.606.377.953.305l.043-.01zM17.19 3.5a.631.631 0 00.628-.64c0-.355-.279-.64-.628-.64a.631.631 0 00-.628.64c0 .355.28.64.628.64zm-10.38 0a.631.631 0 00.628-.64c0-.355-.28-.64-.628-.64a.631.631 0 00-.628.64c0 .355.279.64.628.64zm-5.182 7.852a.631.631 0 00-.628.64c0 .354.28.639.628.639a.63.63 0 00.627-.606l.001-.034a.62.62 0 00-.628-.64zm5.182 9.13a.631.631 0 00-.628.64c0 .355.279.64.628.64a.631.631 0 00.628-.64c0-.355-.28-.64-.628-.64zm10.38.018a.631.631 0 00-.628.64c0 .355.28.64.628.64a.631.631 0 00.628-.64c0-.355-.279-.64-.628-.64zm5.182-9.148a.631.631 0 00-.628.64c0 .354.279.639.628.639a.631.631 0 00.628-.64c0-.355-.28-.64-.628-.64zm-.384-4.992a.24.24 0 00.244-.249.24.24 0 00-.244-.249.24.24 0 00-.244.249c0 .142.122.249.244.249zM11.991.497a.24.24 0 00.245-.248A.24.24 0 0011.99 0a.24.24 0 00-.244.249c0 .133.108.236.223.247l.021.001zM2.011 6.36a.24.24 0 00.245-.249.24.24 0 00-.244-.249.24.24 0 00-.244.249.24.24 0 00.244.249zm0 11.263a.24.24 0 00-.243.248.24.24 0 00.244.249.24.24 0 00.244-.249.252.252 0 00-.244-.248zm19.995-.018a.24.24 0 00-.245.248.24.24 0 00.245.25.24.24 0 00.244-.25.252.252 0 00-.244-.248z"/></svg>', chip: "bg-glm/10 border-glm/20 text-glm", hover: "hover:border-glm/30", grip: "hover:text-glm", grad: "from-glm to-glmLight" }
+  };
+  function accentOf(acc, i) {
+    var t = (acc && acc.type) || "";
+    if (BRAND_ACCENTS[t]) return BRAND_ACCENTS[t];
+    var key = String((acc && (acc.id || acc.name)) || i), h = 0;
+    for (var k = 0; k < key.length; k++) h = (h * 31 + key.charCodeAt(k)) >>> 0;
+    return ROW_ACCENTS[h % ROW_ACCENTS.length];
+  }
+  /* 官方通道给官方图标; 其他通道取通道名首字(汉字或字母) */
+  function rowIconOf(acc, name, a) {
+    if (a.logoSvg) return a.logoSvg;
+    var ch = String(name || "").trim().charAt(0);
+    return '<span class="text-[10px] font-bold leading-none tracking-tight">' + esc(ch || "?") + '</span>';
+  }
+
+  /* ---------- 渲染: 收起磁贴(前 4 站) ---------- */
+  /* 只有一行磁贴(1~2 个)时不再让这一行拉满卡片: tileGrid 平时是 flex-1 +
+     items-stretch, 两行时每行自然高, 一行时那行会被撑到整块剩余高度, 磁贴
+     看着被拉大一圈。这里把网格改成按内容高、卡片按实际内容收高, 底部跟着
+     贴上去; 两行与空列表维持原样。 */
+  function fitCollapsed(n) {
+    var card = document.querySelector("#collapsedWrap .ios-glass-card");
+    var grid = $("tileGrid");
+    if (!card || !grid) return;
+    var oneRow = n === 1 || n === 2;
+    grid.style.flex = oneRow ? "0 0 auto" : "";
+    /* 卡片按内容收边: 写 auto, 高度就是头栏 + 一行磁贴, 底部自然贴着最后一行;
+       两行和空列表清掉内联值, 回到 class 里的固定高度。这里刻意不量像素再写回:
+       卡片带 height 过渡动画, 量到的经常是动画中间值, 写回去反而把卡片钉高,
+       窗口跟着高出, 底部就露出一条黑边。窗口尺寸由 ResizeObserver 跟着卡片走。 */
+    card.style.height = oneRow ? "auto" : "";
+  }
+  function renderTiles() {
+    var grid = $("tileGrid");
+    var stations = S.stations.slice(0, 4);
+    if (!stations.length) {
+      grid.innerHTML = '<div class="col-span-2 flex items-center justify-center text-[10px] text-muted">暂无监控账户 · 打开 configs 添加</div>';
+      fitCollapsed(0);
+      return;
+    }
+    grid.innerHTML = stations.map(function (st) {
+      var bal, balCls = "text-[10px] text-accent font-semibold tracking-tight",
+          dotCls = "w-[5px] h-[5px] rounded-full bg-ok animate-dot-glow shrink-0 inline-block",
+          lat = "";
+      if (st.ok) {
+        bal = fmtMoney(st.remaining, st.unit);
+        if (Number(st.remaining) < 0) balCls = "text-[10px] text-danger font-semibold tracking-tight";
+        if (Number.isFinite(Number(st.latency_ms))) lat = st.latency_ms + "ms";
+      } else {
+        bal = "错误";
+        balCls = "text-[10px] text-danger font-semibold tracking-tight";
+        dotCls = "w-[5px] h-[5px] rounded-full bg-danger shrink-0 inline-block";
+      }
+      var title = (st.name || "") + " · " + (st.ok ? bal : String(st.error || "查询失败"));
+      return '<div class="px-2 py-1 bg-white/60 hover:bg-white/90 border border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all flex flex-col justify-between rounded-xl" title="' + esc(title) + '">' +
+        '<div class="flex items-center justify-between"><span class="text-[11px] text-ink font-semibold truncate leading-none">' + esc(st.name || "未命名") + '</span><span class="' + dotCls + '"></span></div>' +
+        '<div class="flex items-center justify-between"><span class="' + balCls + '">' + esc(bal) + '</span>' +
+        '<span class="font-mono text-[9px] text-ok font-medium">' + esc(lat) + '</span></div></div>';
+    }).join("");
+    fitCollapsed(stations.length);
+  }
+
+  /* ---------- 渲染: 展开行列表 ---------- */
+  function renderRows() {
+    var list = $("rowList");
+    if (!S.stations.length) {
+      list.innerHTML = '<div class="flex-1 flex items-center justify-center text-[10px] text-muted">暂无监控账户 · 点击底部“添加”配置节点</div>';
+      return;
+    }
+    list.innerHTML = S.stations.map(function (st, i) {
+      var acc = S.accounts[i] || {};
+      var a = accentOf(acc, i);
+      var rowId = acc.id || "";
+      var picked = !!(delMode && rowId && sel[rowId]);
+      /* 删除模式下把拖拽手柄换成勾选框: 位置不变, 不改行高 */
+      var grip = delMode
+        ? '<span class="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-all ' + (picked ? 'bg-danger border-danger text-white' : 'bg-white/70 border-black/15 text-transparent') + '"><span class="material-symbols-outlined text-[11px] leading-none">check</span></span>'
+        : '<div class="flex items-center opacity-40 group-hover/row:opacity-100 transition-opacity"><span data-grip class="material-symbols-outlined text-[13px] text-muted ' + a.grip + ' cursor-grab active:cursor-grabbing leading-none" title="拖动排序">drag_indicator</span></div>';
+      var neg = st.ok && Number(st.remaining) < 0;
+      var bal = st.ok ? fmtMoney(st.remaining, st.unit) : String(st.error || "查询失败").slice(0, 18);
+      var balCls = "font-label-md text-label-md font-bold tracking-tight " + (st.ok && !neg ? "text-ink" : "text-danger");
+      var tr = trafficOf(st), detail;
+      if (tr && Number.isFinite(Number(tr.cost_usd))) {
+        detail = "今日 $" + Number(tr.cost_usd).toFixed(2) + ' <span class="text-muted">(' + fmtTok(tr.tokens) + ')</span>';
+      } else if (st.ok && Number.isFinite(Number(st.used))) {
+        detail = "已用 " + fmtMoney(st.used, st.unit);
+      } else if (st.ok && st.updated) {
+        detail = "更新 " + st.updated;
+      } else {
+        detail = "查询失败";
+      }
+      var bar = (st.ok && !neg)
+        ? '<div class="h-full bg-gradient-to-r ' + a.grad + ' rounded-full" style="width: ' + pctOf(st) + '%;"></div>'
+        : '<div class="h-full bg-gradient-to-r from-danger to-dangerLight rounded-full opacity-40" style="width: 100%;"></div>';
+      var rowStyle = (i === dragIdx ? 'box-shadow:0 0 0 2px rgba(0,113,227,0.45),0 4px 12px rgba(0,113,227,0.16);' : '')
+        + (picked ? 'box-shadow:inset 0 0 0 1.5px rgba(255,59,48,0.5);background:rgba(255,59,48,0.06);' : '');
+      return '<div class="group/row rounded-xl px-2.5 bg-white/65 hover:bg-white/95 border border-white/80 ' + a.hover + ' shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all duration-150 flex flex-col shrink-0 cursor-pointer py-0.5 gap-px" style="' + rowStyle + '" data-row="' + i + '">' +
+        '<div class="flex items-center justify-between"><div class="flex items-center gap-1.5">' +
+        '<div class="w-5 h-5 rounded-lg ' + a.chip + ' flex items-center justify-center shadow-xs"><span class="material-symbols-outlined text-[13px]">' + rowIconOf(acc, st.name, a) + '</span></div>' +
+        '<span class="font-body-sm text-body-sm text-ink font-semibold leading-tight">' + esc(st.name || "未命名") + '</span></div>' +
+        '<div class="flex items-center gap-1.5"><span class="' + balCls + '">' + esc(bal) + '</span>' +
+        grip + '</div></div>' +
+        '<div class="flex items-center justify-between text-ink2 font-label-sm text-label-sm pl-6.5"><div class="flex items-center gap-1 truncate">' +
+        '<span class="text-muted">' + esc(typeLabelOf(st, i)) + '</span><span class="text-black/20">•</span><span>' + detail + '</span></div>' +
+        '<div class="flex items-center gap-1 shrink-0 ml-1"><div class="flex items-center opacity-0 group-hover/row:opacity-100 transition-opacity -mr-0.5">' +
+        '<button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="上移" data-op="up"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_up</span></button>' +
+        '<button class="w-3.5 h-3.5 rounded hover:bg-black/[0.05] text-muted hover:text-ink flex items-center justify-center transition-colors" title="下移" data-op="down"><span class="material-symbols-outlined text-[11px] leading-none">keyboard_arrow_down</span></button>' +
+        '</div></div></div>' +
+        '<div class="w-full h-[2.5px] rounded-full bg-black/[0.05] overflow-hidden">' + bar + '</div></div>';
+    }).join("");
+  }
+
+  /* ---------- 渲染: 徽章 / 指示灯 / 底部状态胶囊 ---------- */
+  var PILL = {
+    ok: "flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-xs select-none",
+    err: "flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-danger/10 border border-danger/25 shadow-xs select-none",
+    idle: "flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/[0.04] border border-black/[0.06] shadow-xs select-none"
+  };
+  var PILL_DOT = {
+    ok: "w-1.5 h-1.5 rounded-full bg-ok animate-indicator-breathe inline-block shrink-0",
+    err: "w-1.5 h-1.5 rounded-full bg-danger inline-block shrink-0",
+    idle: "w-1.5 h-1.5 rounded-full bg-faint inline-block shrink-0"
+  };
+  var PILL_TXT = {
+    ok: "font-label-sm text-[10px] text-okText font-semibold tracking-tight leading-none",
+    err: "font-label-sm text-[10px] text-danger font-semibold tracking-tight leading-none",
+    idle: "font-label-sm text-[10px] text-ink2 font-semibold tracking-tight leading-none"
+  };
+  function applyStatus() {
+    var stations = S.stations || [];
+    var okCount = stations.filter(function (s) { return s && s.ok; }).length;
+    $("activeText").textContent = okCount + " 活跃";
+    var state0 = (!stations.length) ? "idle" : (okCount === 0 ? "err" : "ok");
+    var hdrBase = "w-1.5 h-1.5 rounded-full inline-block shrink-0 ";
+    var hdrCls = state0 === "ok" ? hdrBase + "bg-ok animate-binary-blink-2s shadow-[0_0_4px_rgba(52,199,89,0.6)]"
+               : state0 === "err" ? hdrBase + "bg-danger shadow-[0_0_4px_rgba(255,59,48,0.55)]"
+               : hdrBase + "bg-faint";
+    $("collapseDot").className = hdrCls;
+    $("expandDot").className = hdrCls;
+    var pill = $("statusPill"), text = $("statusText"), tr = S.traffic, k, msg;
+    if (S.loading && !stations.length) { k = "idle"; msg = "正在连接"; }
+    else if (!stations.length) { k = "idle"; msg = "无账户"; }
+    else if (okCount === stations.length) {
+      k = "ok";
+      if (tr && tr.available && Number.isFinite(Number(tr.cost_usd))) {
+        msg = "今日 $" + Number(tr.cost_usd).toFixed(2) + " · " + (tr.requests || 0) + "次";
+      } else {
+        msg = S.lastUpdated ? "更新 " + S.lastUpdated : "全部正常";
+      }
+    }
+    else if (okCount === 0) { k = "err"; msg = "全部异常"; }
+    else { k = "ok"; msg = okCount + "/" + stations.length + " 正常"; }
+    pill.className = PILL[k]; $("statusDot").className = PILL_DOT[k];
+    text.className = PILL_TXT[k]; text.textContent = msg;
+  }
+  function render() {
+    if (MODE !== "rt") return;
+    renderTiles(); if (dragIdx < 0) renderRows(); applyStatus(); reportSize();
+  }
+
+  /* ---------- 数据拉取 ---------- */
+  function fetchState() {
+    if (MODE !== "rt") return Promise.resolve();
+    return fetch("/api/state", { cache: "no-store" })
+      .then(function (res) { if (!res.ok) throw new Error("HTTP " + res.status); return res.json(); })
+      .then(function (data) {
+        S.stations = Array.isArray(data.stations) ? data.stations.filter(Boolean) : [];
+        S.accounts = Array.isArray(data.accounts) ? data.accounts : [];
+        S.traffic = data.traffic || null;
+        S.settings = data.settings || {};
+        S.loading = !!data.loading;
+        if (data.updated) S.lastUpdated = data.updated;
+        pairStations();
+        dropDead(S.accounts.map(function (a) { return a && a.id; }));
+        render();
+      })
+      .catch(function () { S.loading = false; render(); });
+  }
+
+  /* ---------- 已接后台: 状态切换与窗口控制 ---------- */
+  function setExpanded(on) {
+    S.expanded = !!on;
+    document.body.classList.toggle("is-expanded", S.expanded);
+    document.body.classList.toggle("is-collapsed", !S.expanded);
+    reportSize();
+  }
+  function doRefresh() {
+    var api = bridge();
+    if (api && typeof api.refresh === "function") { try { api.refresh(); } catch (e) {} }
+    fetchState();
+    setTimeout(fetchState, 2500);
+    setTimeout(fetchState, 6000);
+  }
+  function onBridge(fn) {
+    return function () {
+      var api = bridge();
+      if (api && typeof api[fn] === "function") { try { api[fn](); } catch (e) {} }
+    };
+  }
+  function bindChrome() {
+    $("btnCExpand").addEventListener("click", function () { setExpanded(true); });
+    $("btnECollapse").addEventListener("click", function () { setExpanded(false); });
+    $("btnCRefresh").addEventListener("click", doRefresh);
+    $("btnERefresh").addEventListener("click", doRefresh);
+    $("btnCMin").addEventListener("click", onBridge("minimize"));
+    $("btnEMin").addEventListener("click", onBridge("minimize"));
+    $("btnCClose").addEventListener("click", onBridge("close"));
+    $("btnEClose").addEventListener("click", onBridge("close"));
+    bindDragBars();
+    bindRowDrag();
+  }
+  function bindDragBars() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-drag]"), function (bar) {
+      bar.addEventListener("mousedown", function (e) {
+        if (e.button !== 0 || e.target.closest("button")) return;
+        whenBridge(800).then(function (api) {
+          if (!api || typeof api.get_pos !== "function" || typeof api.move_to !== "function") return;
+          api.get_pos().then(function (start) {
+            var sx = e.screenX, sy = e.screenY;
+            var ox = (start && start.x) || 0, oy = (start && start.y) || 0;
+            function move(ev) { api.move_to(ox + (ev.screenX - sx), oy + (ev.screenY - sy)); }
+            function up() {
+              window.removeEventListener("mousemove", move);
+              window.removeEventListener("mouseup", up);
+            }
+            window.addEventListener("mousemove", move);
+            window.addEventListener("mouseup", up);
+          });
+        });
+      });
+    });
+  }
+  function bindResize() {
+    if (typeof ResizeObserver !== "undefined") {
+      var ro = new ResizeObserver(function () { reportSize(); });
+      /* 观察卡片本身: 上报的就是它, 盯包裹层会漏掉 Tailwind 异步生效后的宽度变化 */
+      ["collapsedWrap", "expandedWrap", "pageWrap"].forEach(function (id) {
+        var wrap = $(id);
+        if (wrap) ro.observe(wrap.querySelector(".ios-glass-card") || wrap);
+      });
+    } else {
+      window.addEventListener("resize", reportSize);
+    }
+  }
+
+  /* ---------- 预留接口: 暂不接后台 ---------- */
+  /* 后续接入时, 只需把对应函数体换成 fetch("/api/...") 或 bridge 调用; 后端接口均已就绪 */
+  var API_STUBS = {
+    openAddModal: function () {},    /* 预留: 底部"添加" → 弹窗 + GET /api/accounts */
+    openEditModal: function (i) {},  /* 预留: 点击行 → 编辑回填 */
+    moveRow: function (i, d) {
+      var ids = idOrder();
+      var j = i + d;
+      if (j < 0 || j >= ids.length) return;
+      ids.splice(j, 0, ids.splice(i, 1)[0]);
+      saveOrder(ids);
+    },
+    startRowDrag: function (i) { dragIdx = i; dragMoved = false; },
+    testAccount: function () {},     /* 预留: POST /api/account/test */
+    saveAccount: function () {},     /* 预留: POST /api/account/save */
+    deleteAccount: function (id) { api("account/delete", { id: id }, true); },  /* 已接后台 */
+    saveSettings: function () {},    /* 预留: POST /api/settings(刷新间隔) */
+    ccswScan: function () {},        /* 预留: GET /api/ccsw/scan + POST /api/ccsw/import */
+    ocxScan: function () {},         /* 预留: GET /api/ocx/scan + POST /api/ocx/import(_path) */
+    setOpacity: function (a) {},     /* 预留: Bridge.set_opacity(0-255) */
+    openConfigs: function () {}      /* 预留: Bridge.open_configs */
+  };
+  /* ---------- 已接后台: 行排序 + 批量删除 ---------- */
+  function idOrder() {
+    return (S.accounts || []).map(function (a) { return a && a.id; }).filter(Boolean);
+  }
+
+  /* 顺序一变, /api/state 里的 accounts 与 stations 会有短暂的不同步(后台还没跑完一轮);
+     两边都带 id 时按 id 对齐, 顺序以 accounts 为准, 避免列表被旧快照顶回去。 */
+  function pairStations() {
+    var accs = S.accounts || [], sts = S.stations || [];
+    if (!accs.length || !sts.length) return;
+    if (!accs.every(function (a) { return a && a.id; })) return;
+    var byId = {};
+    sts.forEach(function (st) { if (st && st.id && !byId[st.id]) byId[st.id] = st; });
+    if (!Object.keys(byId).length) return;
+    var out = accs.map(function (a) { return byId[a.id]; });
+    if (out.some(function (x) { return !x; })) return;
+    if (out.length === sts.length) S.stations = out;
+  }
+  /* 后端注入的进程级令牌：写操作 POST 必须带在 X-Api-Token 头里（meta 由本机服务返回页面时注入） */
+  function apiToken() {
+    var m = document.querySelector('meta[name="api-token"]');
+    return (m && m.getAttribute("content")) || "";
+  }
+  function api(path, body, quiet) {
+    var p = fetch("/api/" + path, { method: "POST",
+      headers: { "Content-Type": "application/json", "X-Api-Token": apiToken() },
+      body: JSON.stringify(body || {}) })
+      .then(function (res) { return res.json(); })
+      .catch(function () { return null; });
+    if (!quiet) p.then(function () { setTimeout(fetchState, 400); });
+    return p;
+  }
+  /* 按用户给定的顺序重排本地列表并落盘; 不按名称/余额做任何排序 */
+  function saveOrder(ids) {
+    var by = {}, stBy = {};
+    S.accounts.forEach(function (a, k) { if (a && a.id) { by[a.id] = a; stBy[a.id] = S.stations[k]; } });
+    S.accounts = ids.map(function (id) { return by[id]; }).filter(Boolean);
+    S.stations = ids.map(function (id) { return stBy[id]; }).filter(Boolean);
+    renderRows();
+    api("account/reorder", { ids: ids });
+  }
+  function dropRow(target) {
+    var src = dragIdx;
+    dragIdx = -1;
+    if (src < 0 || target < 0 || src === target || !dragMoved) { dragMoved = false; renderRows(); return; }
+    dragMoved = false;
+    var ids = idOrder();
+    ids.splice(target, 0, ids.splice(src, 1)[0]);
+    saveOrder(ids);
+  }
+  function setDelMode(on) {
+    delMode = !!on;
+    if (!delMode) sel = {};
+    document.body.classList.toggle("is-deleting", delMode);
+    $("btnDel").style.display = delMode ? "none" : "";
+    $("btnOk").style.display = delMode ? "" : "none";
+    renderRows();
+  }
+  function confirmDel() {
+    var ids = Object.keys(sel).filter(function (k) { return sel[k]; });
+    setDelMode(false);
+    if (!ids.length) return;
+    ids.forEach(function (id) { dead[id] = 1; API_STUBS.deleteAccount(id); });
+    dead2drop();
+    render();
+    setTimeout(fetchState, 400);
+  }
+  /* 已删的行先从本地拿掉(后台还在拉数据时不会闪回来) */
+  function dead2drop() {
+    if (!Object.keys(dead).length) return;
+    var keep = S.accounts.map(function (a, i) {
+      return (a && a.id && dead[a.id]) ? -1 : i;
+    }).filter(function (i) { return i >= 0; });
+    S.accounts = keep.map(function (i) { return S.accounts[i]; });
+    S.stations = keep.map(function (i) { return S.stations[i]; }).filter(Boolean);
+  }
+  function dropDead(live) {
+    if (!Object.keys(dead).length) return;
+    var on = {};
+    (live || []).forEach(function (id) { if (id) on[id] = 1; });
+    var pending = Object.keys(dead).some(function (id) { return on[id]; });
+    if (pending) dead2drop();
+    dead = {};
+  }
+  /* 拖拽用抓手按钮不用 HTML5 DnD: pywebview 内拖拽会被系统拖放拦截 */
+  function bindRowDrag() {
+    var list = $("rowList"), src = -1, over = -1;
+    function mark() {
+      Array.prototype.forEach.call(list.querySelectorAll("[data-row]"), function (el) {
+        var on = Number(el.getAttribute("data-row")) === src || Number(el.getAttribute("data-row")) === over;
+        el.style.boxShadow = on ? "0 0 0 2px rgba(0,113,227,0.45),0 4px 12px rgba(0,113,227,0.16)" : "";
+      });
+    }
+    list.addEventListener("mousedown", function (e) {
+      suppressClick = false;
+      if (delMode || e.button !== 0) return;
+      var grip = e.target.closest("[data-grip]"), row = e.target.closest("[data-row]");
+      if (!grip || !row) return;
+      e.preventDefault();
+      src = Number(row.getAttribute("data-row")); over = src;
+      API_STUBS.startRowDrag(src);
+      mark();
+      function move(ev) {
+        var el = document.elementFromPoint(ev.clientX, ev.clientY);
+        var r = el && el.closest ? el.closest("[data-row]") : null;
+        if (!r) return;
+        var k = Number(r.getAttribute("data-row"));
+        if (k !== over) { over = k; if (k !== src) dragMoved = true; mark(); }
+      }
+      function up() {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", up);
+        suppressClick = true;
+        dropRow(over);
+        /* 松手点落在行外时 click 不会来, 兜底清掉, 免得吞掉下一次点击 */
+        setTimeout(function () { suppressClick = false; }, 300);
+      }
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", up);
+    });
+  }
+
+  /* ================= 接入页: 账户配置 =================
+     底部"添加"从展开态进入这里。页签与模板一致; NewAPI 先做透, 其余类型按
+     后端同一张字段表给出可用表单。窗口尺寸仍由卡片内容决定(reportSize)。 */
+  var PARTS = {
+    newapi:   { title: "NewAPI \u914d\u7f6e",   types: ["newapi"] },
+    official: { title: "\u5b98\u65b9\u63a5\u53e3\u914d\u7f6e",  types: ["deepseek", "moonshot", "zhipu"] },
+    generic:  { title: "\u81ea\u5b9a\u4e49\u63a5\u53e3\u914d\u7f6e", types: ["generic"] },
+    ccsw:     { title: "CC-SW \u914d\u7f6e",    types: ["ccsw"] },
+    ocx:      { title: "OCX \u914d\u7f6e",      types: ["ocx"] }
+  };
+  var TYPE_LABEL = { newapi: "NewAPI", deepseek: "\u5b98\u65b9\u76f4\u8fde", moonshot: "\u5b98\u65b9\u76f4\u8fde",
+                     zhipu: "\u5b98\u65b9\u76f4\u8fde", generic: "\u81ea\u5b9a\u4e49", ccsw: "CC-SW", ocx: "OCX" };
+  /* 官方直连常用服务商: 图标用品牌色方块 + 首字母, 不引第三方 logo 资源 */
+  var OFFICIAL = {
+    deepseek: { name: "DeepSeek", color: "#4d6bfe", mark: "D" },
+    moonshot: { name: "Kimi",     color: "#1d1d1f", mark: "K" },
+    zhipu:    { name: "GLM",      color: "#3d5afe", mark: "G" }
+  };
+  function brandIcon(t) {
+    var b = OFFICIAL[t] || { color: "#86868b", mark: "?" };
+    return '<span class="w-5 h-5 rounded-lg flex items-center justify-center font-bold text-[10px] text-white shrink-0" style="background:' + b.color + '">' + b.mark + '</span>';
+  }
+  /* 自定义页签: 一个文本框装整块 JSON, 键名与后端一致, 认不出的字段原样透传 */
+  function blobCard(id) {
+    return '<div class="rounded-2xl p-2 bg-white/70 border border-white/90 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col gap-1">' +
+      '<label class="text-[10px] font-semibold text-muted flex items-center justify-between gap-1" for="' + id + '">' +
+      '<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[12px]" style="color:#5856d6">code</span><span>配置（JSON 文本）</span></span>' +
+      '<span class="text-[9px] text-muted truncate max-w-[160px]">键名以后端为准, 多的字段原样带上</span></label>' +
+      '<textarea id="' + id + '" spellcheck="false" autocomplete="off" class="w-full h-[136px] bg-transparent border-0 p-0 pb-0.5 font-mono text-[11px] text-ink focus:ring-0 resize-none leading-snug"></textarea></div>';
+  }
+  function blobText(raw) {
+    var out = {}, keys = ["name", "url", "api_key", "timeout", "unit", "divisor", "headers", "json_paths"];
+    keys.forEach(function (k) { if (raw && raw[k] != null && raw[k] !== "") out[k] = raw[k]; });
+    return JSON.stringify(out, null, 2);
+  }
+  function parseBlob(text) {
+    var t = String(text == null ? "" : text).trim();
+    if (!t) return {};
+    try {
+      var o = JSON.parse(t);
+      return (o && typeof o === "object" && !Array.isArray(o)) ? o : {};
+    } catch (e) {}
+    /* 不是严格 JSON 也认: 去掉大括号后按行/逗号拆 key: value, 方便从别处直接粘过来 */
+    var out = {};
+    t.replace(/^\{|\}$/g, "").split(/[\n,]/).forEach(function (line) {
+      var m = /^\s*"?([A-Za-z_][\w-]*)"?\s*[:=]\s*"?(.*?)"?\s*$/.exec(line);
+      if (m && m[1]) out[m[1]] = m[2];
+    });
+    return out;
+  }
+  /* 字段表跟后端的 REQUIRED_FIELDS / providers 取值口径一致, 不出现后端没有的字段 */
+  var FIELDS = {
+    name:         { label: "\u540d\u79f0",       icon: "badge",       color: "#0284c7", req: true, ph: "\u4f8b\u5982 Moniker" },
+    base_url:     { label: "\u8bf7\u6c42\u5730\u5740",   icon: "link",        color: "#0071e3", req: true, mono: true, ph: "https://your-site.com", hint: "\u7ad9\u70b9\u6839\u5730\u5740\uff0c\u4e0d\u5e26 /v1", per: { ocx: { label: "服务器连接", hint: "OCX 代理地址，例 http://127.0.0.1:10100" } } },
+    access_token: { label: "\u8bbf\u95ee\u4ee4\u724c",   icon: "key",         color: "#5856d6", req: true, secret: true, hint: "\u4e2a\u4eba\u5b89\u5168\u8bbe\u7f6e\u91cc\u83b7\u53d6" },
+    api_key:      { label: "API Key",    icon: "key",         color: "#5856d6", req: true, secret: true, mono: true, per: { ocx: { hint: "OCX 的 API 密钥，可留空" } } },
+    user_id:      { label: "\u7528\u6237 ID",    icon: "person",      color: "#0284c7", mono: true, hint: "\u975e sk \u4ee4\u724c\u5fc5\u586b" },
+    url:          { label: "\u8bf7\u6c42\u5730\u5740",   icon: "link",        color: "#0071e3", req: true, mono: true, ph: "https://your-site.com/api/usage", hint: "\u5b8c\u6574\u7684\u4f59\u989d\u67e5\u8be2 URL" },
+    provider_id:  { label: "Provider ID", icon: "fingerprint", color: "#5856d6", req: true, mono: true, hint: "CC-SW \u8282\u70b9\u6807\u8bc6" },
+    timeout:      { label: "\u8d85\u65f6\uff08\u79d2\uff09", icon: "schedule",    color: "#ea580c", step: true, min: 1, ph: "10" },
+    divisor:      { label: "\u6362\u7b97\u500d\u6570",   icon: "calculate",   color: "#0284c7", num: true, ph: "500000", hint: "quota \u5355\u4ef7\uff0c\u7ad9\u70b9\u7ea7\u5e38\u91cf" },
+    unit:         { label: "\u8ba1\u4ef7\u5355\u4f4d",   icon: "sell",        color: "#16a34a", ph: "CNY / USD" }
+  };
+  var FORMS = {
+    newapi:   { types: ["newapi"], fields: ["name", "base_url", "access_token", "user_id"], extras: ["timeout", "divisor", "unit"] },
+    official: { types: ["deepseek", "moonshot", "zhipu"], fields: ["name", "api_key"] },   /* 只填密钥, 地址走后端默认 */
+    generic:  { types: ["generic"], fields: [] },   /* 表单是整块 JSON 文本, 字段名与后端一致 */
+    ccsw:     { types: ["ccsw"], fields: ["name", "provider_id", "base_url"] },
+    ocx:      { types: ["ocx"], fields: ["name", "base_url", "api_key"], opt: ["api_key"] }   /* 服务器连接必填; API 密钥可留空 */
+  };
+  var pageMode = "";        /* "" | list | form | settings */
+  var cur = null;           /* 表单态: {id, type, raw, tab} */
+  var pageRows = [];        /* /api/accounts 快照 */
+  var pgMinutes = 5, pgSeconds = 10;
+  var pgHidden = [];       /* CC-SW 隐藏名单: 删过的节点都在这儿, 不是没了 */
+  var hidOpen = false;     /* 隐藏区展开态 */
+
+  function fid(k) { return "pgF_" + k; }
+  function tabOf() { return S.tab || "newapi"; }
+  function part() { return PARTS[tabOf()] || PARTS.newapi; }
+  function activeCard() { var w = $("pageWrap"); return (w && w.querySelector(".ios-glass-card")) || w; }
+  function showMsg(t, ok) {
+    var el = $("pageMsg"); if (!el) return;
+    el.className = "flex-1 min-w-0 text-[10px] font-semibold truncate " + (ok ? "text-okText" : "text-danger");
+    el.textContent = t || "";
+  }
+  /* 接入页沿用模板配置弹窗的尺寸: 宽 360 (模板实测 360x423)。高度钉在 420 不随内容长高,
+     列表/表单/设置三态共用一个窗口大小, 装不下的内容由体内滚动; 只有屏幕放不下时才收窄压低。
+     尺寸与收起/展开态无关, 窗口跟着这张卡片走。 */
+  function fitPage() {
+    paintWipe();   /* 页脚的批量删除跟着列表态显隐 */
+    var el = activeCard(); if (!el || !S.page) return;
+    var scr = window.screen || {};
+    var availW = Number(scr.availWidth) || 1280, availH = Number(scr.availHeight) || 800;
+    el.style.width = Math.max(280, Math.min(360, availW - 40)) + "px";
+    el.style.height = Math.max(260, Math.min(420, availH - 80)) + "px";
+    reportSize();
+  }
+  function setPage(on, tab) {
+    S.page = !!on;
+    if (S.page) {
+      if (tab) S.tab = tab;
+      setExpanded(false);
+      pageMode = "list";
+      cur = null;
+      delMode = false; sel = {};   /* 接入页的批量删除与展开页共用同一份选中态, 进出都要清干净 */
+      document.body.classList.add("is-page");
+      if ($("pageFoot")) $("pageFoot").innerHTML = "";   /* 先清旧页脚, 免得闪一下上一次的气泡 */
+      el_show("pageList", true); el_show("pageForm", false); el_show("pageExtras", false);
+      $("pageTitle").textContent = part().title;
+      paintTabs();
+      showMsg("", true);
+      loadAccts();
+      fitPage();
+    } else {
+      delMode = false; sel = {};
+      document.body.classList.remove("is-page", "is-deleting");
+    }
+    reportSize();
+  }
+  /* 页脚固定在列表下方(滚动区之外): 收纳"导入刷新"气泡与"一键删除" */
+  function footShow(el, on) {
+    /* 收起时也要保留 shrink-0: 只写 hidden 会让外层 flex 列的子项被算进布局,
+       卡片高度平白多出一截, 列表底部跟着浮起来 */
+    el.className = (on ? "flex" : "hidden") + " items-center gap-1.5 shrink-0";
+  }
+  function el_show(id, on) {
+    var el = $(id); if (!el) return;
+    if (id === "pageList") {
+      var f = $("pageFoot");
+      if (f) footShow(f, on && !!f.innerHTML.trim());
+    }
+    if (id === "pageFoot") { footShow(el, on && !!el.innerHTML.trim()); return; }
+    var base = id === "pageList" || id === "pageForm" ? "flex-1 min-h-0 overflow-y-auto " : "";
+    el.className = base + (on ? "flex flex-col " : "hidden flex-col ") + (id === "pageForm" ? "gap-2.5" : id === "pageExtras" ? "gap-2 pb-0.5" : "gap-1");
+  }
+  function paintTabs() {
+    var box = $("pageTabs"); if (!box) return;
+    Array.prototype.forEach.call(box.querySelectorAll("[data-kind]"), function (b) {
+      var on = b.getAttribute("data-kind") === tabOf();
+      b.className = "flex-1 py-1 px-1 rounded-lg text-[11px] transition-all text-center whitespace-nowrap " +
+        (on ? "bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)] font-semibold text-ink"
+            : "hover:bg-white/50 font-medium text-ink2 hover:text-ink");
+    });
+  }
+  function paintBtns(list) {
+    $("pageBtns").innerHTML = list.map(function (b) {
+      var cls = b.primary
+        ? "bg-accent hover:bg-accentHover text-white shadow-[0_4px_12px_rgba(0,113,227,0.28)]"
+        : "bg-white/75 hover:bg-white text-ink border border-black/[0.06] shadow-xs";
+      return '<button id="' + b.id + '" class="py-1.5 px-2.5 rounded-xl active:scale-[0.98] text-[11px] font-semibold transition-all flex items-center justify-center gap-1 ' + cls + '">' +
+        '<span class="material-symbols-outlined text-[13px]">' + b.icon + '</span><span>' + b.label + '</span></button>';
+    }).join("");
+    list.forEach(function (b) { var el = $(b.id); if (el) el.addEventListener("click", b.fn); });
+  }
+  function loadAccts() {
+    scanGlyphs();
+    loadModels();
+    loadHidden();
+    return fetch("/api/accounts", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { pageRows = Array.isArray(d) ? d : []; if (pageMode === "list") renderList(); fitPage(); })
+      .catch(function () { pageRows = []; if (pageMode === "list") renderList(); fitPage(); });
+  }
+  /* 删掉的 CC-SW 只是进了隐藏名单: 后端把名单跟 cc-switch 库里现存的节点对回来,
+     列表里就能点"展示"把它放回上面那一堆 */
+  function loadHidden() {
+    return fetch("/api/ccsw/hidden", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { pgHidden = (d && d.hidden) || []; if (pageMode === "list") renderList(); fitPage(); })
+      .catch(function () { pgHidden = []; });
+  }
+
+  /* ---------- 列表态 ---------- */
+  /* 列表里的"新增"入口: 官方选块之外的页签共用一份外形 */
+  function addRow(types) {
+    return types.map(function (t) {
+      var full = types.length === 1;
+      return '<button class="' + (full ? "w-full" : "flex-1") + ' py-1.5 rounded-xl border border-dashed border-black/[0.12] hover:border-accent/60 hover:bg-blue-50/40 text-[11px] font-semibold text-ink2 hover:text-accent transition-all flex items-center justify-center gap-1" data-add="' + t + '">' +
+        '<span class="material-symbols-outlined text-[14px]">add</span><span>新增 ' + esc(TYPE_LABEL[t] || t) + '</span></button>';
+    }).join("");
+  }
+  function renderList() {
+    var types = part().types;
+    var rows = pageRows.filter(function (a) { return a && types.indexOf(a.type) >= 0; });
+    var html = rows.map(function (a) {
+      var picked = !!(delMode && a.id && sel[a.id]);
+      var chip = a.enabled === false
+        ? '<span class="px-1 py-0.5 rounded-full bg-black/[0.05] text-[9px] text-ink2 font-semibold shrink-0">\u5df2\u505c\u7528</span>' : "";
+      return '<div class="group/row rounded-xl px-2.5 bg-white/65 hover:bg-white/95 border border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-1.5 py-1 cursor-pointer" data-acc="' + esc(a.id) + '"' + (picked ? ' style="box-shadow:inset 0 0 0 1.5px rgba(255,59,48,0.5);background:rgba(255,59,48,0.06);"' : '') + '>' +
+        '<div class="flex items-center gap-1.5 min-w-0">' +
+        '<div class="w-5 h-5 rounded-lg bg-blue-50/90 border border-blue-100/70 flex items-center justify-center text-accent shrink-0"><span class="material-symbols-outlined text-[13px]">cloud</span></div>' +
+        '<div class="min-w-0"><div class="font-body-sm text-body-sm text-ink font-semibold leading-tight truncate">' + esc(a.name || "\u672a\u547d\u540d") + '</div>' +
+        '<div class="font-label-sm text-label-sm text-muted truncate">' + esc(TYPE_LABEL[a.type] || a.type) + (a.base_url ? " \u00b7 " + esc(a.base_url) : "") + '</div></div></div>' +
+        '<div class="flex items-center gap-1 shrink-0">' + chip +
+        /* 勾选圈只在删除模式露脸, 与展开页一样: 先点下面的一键删除, 再逐行勾选 */
+        (delMode ? '<span class="material-symbols-outlined text-[14px] ' + (picked ? "text-danger" : "text-muted") + ' cursor-pointer transition-colors" data-pick="' + esc(a.id) + '" title="\u9009\u4e2d\u5220\u9664">' + (picked ? "check_circle" : "radio_button_unchecked") + '</span>' : '') +
+        '</div></div>';
+    }).join("");
+    var hidden = (tabOf() === "ccsw") ? hiddenGroup() : "";
+    var imp = (tabOf() === "ccsw" || tabOf() === "ocx");   /* 页脚的"导入刷新"气泡: CC-SW 与 OCX */
+    var adds = "", grp = "", inline = "";
+    if (tabOf() === "official") {
+      adds = '<div class="flex items-center gap-1.5 shrink-0 pb-0.5">' + Object.keys(OFFICIAL).map(function (t) {
+        return '<button class="flex-1 py-1 px-1 rounded-xl border border-black/[0.12] hover:border-accent/60 hover:bg-blue-50/40 text-[11px] font-semibold text-ink transition-all flex items-center justify-center gap-1" data-add="' + t + '">' +
+          brandIcon(t) + '<span>' + OFFICIAL[t].name + '</span></button>';
+      }).join("") + '</div>';
+      grp = modelGroups();
+    } else if (imp) {
+      adds = '<button class="flex-1 min-w-0 py-1.5 rounded-xl bg-accent hover:bg-accentHover text-white shadow-[0_4px_12px_rgba(0,113,227,0.28)] active:scale-[0.98] text-[11px] font-semibold transition-all flex items-center justify-center gap-1" data-import="' + tabOf() + '">' +
+        '<span class="material-symbols-outlined text-[14px]">download</span><span>导入刷新</span></button>';
+      if (tabOf() === "ocx") inline = addRow(types);   /* OCX 除了一键导入刷新, 列表里还要能手填服务器连接与 API */
+    } else {
+      adds = addRow(types);
+    }
+    /* 官方选块与"新增"是列表内容, 跟着列表一起滚 */
+    $("pageList").innerHTML = (rows.length ? html
+        : (tabOf() === "official" ? "" : '<div class="flex-1 flex items-center justify-center text-[10px] text-muted py-3">\u8fd8\u6ca1\u6709\u8fd9\u4e00\u7c7b\u8d26\u6237</div>'))
+      + (imp ? inline : adds) + hidden + grp;
+    /* 气泡和"一键删除"挂页脚: 在滚动区之外, 列表滚到哪它们都钉在最下方 */
+    var bub = (imp && !delMode) ? adds : "";   /* 气泡只在 CC-SW/OCX 列表里 */
+    var foot = delMode ? "" : bub + wipeBtn(!!bub);   /* 与气泡并排时收窄, 单独一行时占满 */
+    var fbox = $("pageFoot");
+    if (fbox) { fbox.innerHTML = foot; footShow(fbox, !!foot); }
+    paintBtns(delMode
+      ? [{ id: "pgBack3", icon: "close", label: "\u53d6\u6d88", fn: function () { wipeOff(); } },
+         { id: "pgDelOk", icon: "delete", label: "\u5220\u9664\u5df2\u9009", primary: true, fn: confirmDelSel }]
+      : [{ id: "pgSet", icon: "tune", label: "\u8bbe\u7f6e", fn: openSettings },
+         { id: "pgReload", icon: "sync", label: "\u5237\u65b0", fn: function () { loadAccts(); setTimeout(fetchState, 300); } }]);
+    paintWipe();
+  }
+  /* ---------- CC-SW 隐藏区 ----------
+     删过的节点没被销毁, 只是记进了后端隐藏名单。这里只放一个折叠头:
+     展开后按名字列出来, 每条右边一个"展示", 点了就撤销标记、回到上面的列表。
+     按钮就两个, 后端"隐藏"后紧接着 loadAccts 重扫, 不用另开接口。 */
+  function showBtn(pid) {
+    return '<button class="px-1.5 py-0.5 rounded-lg border border-black/[0.08] bg-white/80 hover:bg-blue-50/60 text-[10px] font-semibold text-ink2 hover:text-accent active:scale-[0.97] transition-all flex items-center gap-0.5 shrink-0" data-hid="' + esc(pid) + '" title="展示">' +
+      '<span class="material-symbols-outlined text-[12px]">visibility</span><span>展示</span></button>';
+  }
+  function hiddenGroup() {
+    var n = pgHidden.length;
+    var head = '<div class="flex items-center gap-1 px-0.5 pt-1 pb-0.5 shrink-0 cursor-pointer" data-hid-toggle="1">' +
+      '<span class="material-symbols-outlined text-[13px] text-muted">' + (hidOpen ? "expand_more" : "chevron_right") + '</span>' +
+      '<span class="text-[10px] font-semibold text-muted">隐藏</span>' +
+      '<span class="text-[9px] text-muted">' + (n ? n : 0) + ' 项</span></div>';
+    if (!hidOpen) return head;
+    if (!n) return head + '<div class="text-[10px] text-muted px-1 pb-1">没有隐藏项</div>';
+    return head + pgHidden.map(function (h) {
+      return '<div class="group/row rounded-xl px-2.5 bg-white/50 border border-white/70 flex items-center justify-between gap-1.5 py-1 shrink-0">' +
+        '<div class="min-w-0"><div class="font-body-sm text-body-sm text-ink2 font-semibold leading-tight truncate">' + esc(h.name || h.provider_id) + '</div>' +
+        '<div class="font-label-sm text-label-sm text-muted truncate">' + esc(h.base_url || "") + '</div></div>' +
+        showBtn(h.provider_id) + '</div>';
+    }).join("");
+  }
+
+  /* ---------- 官方页签: 标配选块(DeepSeek/Kimi/GLM) + 后端驱动的主流模型清单 ----------
+     标准字段的标题/顺序/取值全在 configs/official/models.json, 页面只负责铺成
+     "标题行 + 输入行"; 你想加字段或加模型, 改那个 json 就行, 这里不动。 */
+  var MODELS = { fields: {}, models: [] };
+  var MODELS_CATS = ["官方直连", "团队/企业版", "聚合平台", "云厂商", "其他"];
+  function mField(k) { return (MODELS.fields && MODELS.fields[k]) || { title: k, hint: "", icon: "key" }; }
+  function mModel(key) { return (MODELS.models || []).filter(function (m) { return m && m.key === key; })[0] || null; }
+  function mCatOf(m) {
+    var c = (m && m.category) || "";   /* 分类随便填: 只归到上面五类, 认不出的进"其他" */
+    return MODELS_CATS.indexOf(c) >= 0 ? c : "其他";
+  }
+  function mColor(key) {
+    var h = 0, s = String(key || "");
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return ["#0071e3", "#5856d6", "#16a34a", "#ea580c", "#0284c7"][h % 5];
+  }
+  function mGroup(key) {
+    var t = String(mField(key).title || key).replace(/[\s\/]+.*$/, "");   /* "百炼 / 通义" 这类取前段 */
+    return '<span class="w-5 h-5 rounded-lg flex items-center justify-center font-bold text-[10px] text-white shrink-0" style="background:' + mColor(key) + '">' + esc(t.charAt(0) || "?") + '</span>';
+  }
+  function loadModels() {
+    return fetch("/api/official/models", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.models) MODELS = d;
+        if (tabOf() === "official" && pageMode === "list") renderList();
+        fitPage();
+      })
+      .catch(function () { MODELS = { fields: {}, models: [] }; });
+  }
+  function modelRow(m) {
+    var n = Object.keys(m.fields || {}).length;   /* 这个模型声明了几个标准字段(不含名称) */
+    return '<div class="group/row rounded-xl px-2.5 bg-white/65 hover:bg-white/95 border border-white/80 shadow-[0_1px_3px_rgba(0,0,0,0.03)] transition-all flex items-center justify-between gap-1.5 py-1 cursor-pointer shrink-0" data-model="' + esc(m.key) + '">' +
+      '<div class="flex items-center gap-1.5 min-w-0">' + mGroup(m.key) +
+      '<span class="font-body-sm text-body-sm text-ink font-semibold leading-tight truncate">' + esc(m.name || m.key) + '</span></div>' +
+      '<div class="flex items-center gap-1 text-[9px] text-muted shrink-0">' + (n ? n + " 项" : "未配置") +
+      '<span class="material-symbols-outlined text-[13px] text-muted group-hover/row:text-accent transition-colors">chevron_right</span></div></div>';
+  }
+  function modelGroups() {
+    var ms = MODELS.models || [];
+    if (!ms.length) return '<div class="flex items-center justify-center text-[10px] text-muted py-3">后端还没有模型清单 (configs/official/models.json)</div>';
+    return MODELS_CATS.map(function (c) {   /* 分组顺序固定, 不按余额/名称重排 */
+      var sub = ms.filter(function (m) { return mCatOf(m) === c; });
+      if (!sub.length) return "";
+      return '<div class="text-[9px] font-semibold text-muted px-0.5 pt-1 shrink-0">' + esc(c) + '</div>' + sub.map(modelRow).join("");
+    }).join("");
+  }
+  /* 标题行(标准字段名) + 输入行(留空待填), 一一对应后端 json 里的字段顺序 */
+  function modelCard(k, value) {
+    var f = mField(k), title = f.title || k;
+    var hint = f.hint ? '<span class="text-[9px] text-muted truncate max-w-[150px]">' + esc(f.hint) + '</span>' : '';
+    return '<div class="rounded-2xl p-2 bg-white/70 border border-white/90 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col gap-1">' +
+      '<label class="text-[10px] font-semibold text-muted flex items-center justify-between gap-1" for="' + fid(k) + '">' +
+      '<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[12px] text-azure">' + esc(f.icon || "key") + '</span><span>' + esc(title) + '</span></span>' + hint + '</label>' +
+      '<input id="' + fid(k) + '" autocomplete="off" spellcheck="false" class="w-full bg-transparent border-0 border-b border-black/[0.08] focus:border-accent focus:ring-0 p-0 pb-0.5 font-mono text-[12px] text-ink" type="text" placeholder="待填写" value="' + esc(value == null ? "" : value) + '"></div>';
+  }
+  function openModel(key) {
+    var m = mModel(key); if (!m) return;
+    pageMode = "form";
+    cur = { id: "", type: "official", tab: "official", model: key, raw: m.fields || {} };
+    var ks = Object.keys(m.fields || {});
+    $("pageFields").innerHTML = ks.map(function (k) { return modelCard(k, m.fields[k]); }).join("");
+    $("pageExtras").innerHTML = "";
+    el_show("pageList", false); el_show("pageForm", true); el_show("pageExtras", false);
+    $("pageTitle").textContent = m.name || key;
+    $("pageSection").textContent = "标准字段";
+    $("pageHint").textContent = "字段表在 configs/official/models.json";
+    showMsg(ks.length ? "" : "这个模型在后端没有声明字段", false);
+    paintBtns([
+      { id: "pgBack2", icon: "arrow_back", label: "返回", fn: backToList },
+      { id: "pgSaveM", icon: "save", label: "保存", primary: true, fn: function () { saveModel(); } }
+    ]);
+    fitPage();
+  }
+  function saveModel() {
+    var m = mModel(cur && cur.model); if (!m) return;
+    var out = {};
+    Object.keys(m.fields || {}).forEach(function (k) { var el = $(fid(k)); if (el) out[k] = el.value; });
+    api("official/models/save", { key: m.key, fields: out }, true).then(function (r) {
+      if (!r || !r.ok) { showMsg("保存失败: " + ((r && r.error) || "未知错误"), false); return; }
+      m.fields = out;
+      showMsg("已保存 · " + (m.name || m.key), true);
+    });
+  }
+
+  /* ---------- 表单态 ---------- */
+  function fieldCard(k, value, optional) {
+    var f = FIELDS[k], id = fid(k), val = value == null ? "" : String(value);
+    var per = (f.per && f.per[tabOf()]) || {};   /* 页签级改写: 同一个 key 在不同页签可以换标题/提示 */
+    var title = per.label || f.label;
+    var label = '<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[12px]" style="color:' + f.color + '">' + f.icon + '</span><span>' + title + '</span>' +
+      (f.req && !optional ? '<span class="text-danger">*</span>' : '') + '</span>';
+    var hintTxt = per.hint != null ? per.hint : f.hint;
+    var hint = hintTxt ? '<span class="text-[9px] text-muted truncate max-w-[150px]">' + hintTxt + '</span>' : '';
+    var body;
+    if (f.step) {
+      body = '<div class="flex items-center justify-between mt-0.5">' +
+        '<button type="button" class="w-5 h-5 rounded-full bg-black/[0.04] hover:bg-black/[0.08] active:scale-90 flex items-center justify-center text-ink font-bold text-[12px] leading-none transition-all" data-step="-1" data-for="' + id + '">\u2212</button>' +
+        '<input id="' + id + '" class="w-16 bg-transparent border-0 p-0 text-center font-mono text-[12px] font-bold text-ink focus:ring-0" type="number" min="' + (f.min || 1) + '" value="' + esc(val) + '" placeholder="' + (f.ph || "") + '">' +
+        '<button type="button" class="w-5 h-5 rounded-full bg-black/[0.04] hover:bg-black/[0.08] active:scale-90 flex items-center justify-center text-ink font-bold text-[12px] leading-none transition-all" data-step="1" data-for="' + id + '">+</button></div>';
+    } else {
+      body = '<input id="' + id + '" autocomplete="off" spellcheck="false" class="w-full bg-transparent border-0 border-b border-black/[0.08] focus:border-accent focus:ring-0 p-0 pb-0.5 ' +
+        (f.mono ? 'font-mono ' : '') + 'text-[12px] text-ink" type="' + (f.num ? "number" : "text") + '" value="' + esc(val) + '" placeholder="' + (f.ph || "") + '"></div>';
+    }
+    return '<div class="rounded-2xl p-2 bg-white/70 border border-white/90 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col gap-1">' +
+      '<label class="text-[10px] font-semibold text-muted flex items-center justify-between gap-1" for="' + id + '">' + label + hint + '</label>' + body + '</div>';
+  }
+  function formKeys() {
+    var fm = FORMS[tabOf()] || FORMS.newapi;
+    return fm.fields.concat(fm.extras || []).filter(function (k) { return fm.fields.indexOf(k) >= 0 || fm.extras.indexOf(k) >= 0; });
+  }
+  function openForm(acc, type) {
+    var fm = FORMS[tabOf()] || FORMS.newapi;
+    cur = { id: (acc && acc.id) || "", type: (acc && acc.type) || type || fm.types[0], raw: acc || {}, tab: tabOf() };
+    pageMode = "form";
+    if (OFFICIAL[cur.type] && !cur.id) cur.raw = { name: OFFICIAL[cur.type].name };
+    if (cur.type === "ocx" && !cur.id) cur.raw = { name: "OpenCodex" };   /* OCX 手填: 名称给个默认 */   /* 官方块: 名称跟着选中项预填 */
+    $("pageSection").textContent = "\u51ed\u8bc1\u914d\u7f6e";
+    $("pageHint").textContent = "\u7559\u7a7a\u5219\u81ea\u52a8\u4f7f\u7528\u4f9b\u5e94\u5546\u914d\u7f6e";
+    var raw = cur.raw || {};
+    var extras = fm.extras || [];
+    if (tabOf() === "generic") {
+      $("pageHint").textContent = "整块 JSON 交给后端, 字段名以后端为准";
+      $("pageFields").innerHTML = blobCard("pgBlob");
+      $("pgBlob").value = blobText(raw);
+      $("pageExtras").innerHTML = "";
+      el_show("pageList", false); el_show("pageForm", true); el_show("pageExtras", false);
+    } else {
+      var opt = fm.opt || [];   /* 该页签里的可选字段: 有值就填, 留空不拦 */
+      $("pageFields").innerHTML = fm.fields.map(function (k) { return fieldCard(k, raw[k], opt.indexOf(k) >= 0); }).join("");
+      $("pageExtras").innerHTML = extras.map(function (k) { return fieldCard(k, raw[k] == null ? (k === "divisor" ? "500000" : k === "unit" ? "CNY" : "") : raw[k]); }).join("");
+      el_show("pageList", false); el_show("pageForm", true); el_show("pageExtras", extras.length > 0);
+    }
+    $("pageTitle").textContent = (cur.id ? "\u7f16\u8f91" : "\u65b0\u589e") + " " + (TYPE_LABEL[cur.type] || cur.type);
+    showMsg("", true);
+    paintBtns([
+      { id: "pgBack2", icon: "arrow_back", label: "\u8fd4\u56de", fn: backToList },
+      { id: "pgTest", icon: "network_check", label: "\u6d4b\u8bd5\u8fde\u63a5", fn: function () { submitAcc(true); } },
+      { id: "pgSave", icon: "check_circle", label: "\u4fdd\u5b58\u5e76\u542f\u7528", primary: true, fn: function () { submitAcc(false); } }
+    ]);
+    bindSteps();
+    fitPage();
+  }
+  function bindSteps() {
+    Array.prototype.forEach.call(document.querySelectorAll("#pageForm [data-step]"), function (b) {
+      b.addEventListener("click", function () {
+        var el = $(b.getAttribute("data-for")); if (!el) return;
+        var v = parseInt(el.value, 10); if (!isFinite(v)) v = 10;
+        el.value = Math.max(1, v + parseInt(b.getAttribute("data-step"), 10));
+      });
+    });
+  }
+  function readForm() {
+    if (pageMode === "form" && cur && cur.model) return {};   /* 模型清单: 字段直接落后端 json, 不走账户 */
+    if (tabOf() === "generic") return parseBlob(($("pgBlob") || {}).value);   /* 自定义: 整块 JSON */
+    var v = {};
+    formKeys().forEach(function (k) { var el = $(fid(k)); if (el) v[k] = String(el.value == null ? "" : el.value).trim(); });
+    return v;
+  }
+  function buildPayload() {
+    var out = {}, raw = cur.raw || {};
+    for (var k in raw) { if (k !== "file") out[k] = raw[k]; }
+    out.type = cur.type;
+    if (cur.id) out.id = cur.id;
+    var v = readForm();
+    for (var k2 in v) {
+      if (v[k2] === "") {
+        if (FIELDS[k2] && FIELDS[k2].secret) continue;   /* 掩码/留空 = 未改, 后端回填库里原值 */
+        if (k2 === "timeout" || k2 === "divisor" || k2 === "unit") { delete out[k2]; continue; }
+      }
+      out[k2] = v[k2];
+    }
+    return out;
+  }
+  function submitAcc(testOnly) {
+    var payload = buildPayload();
+    if (testOnly) {
+      showMsg("\u6b63\u5728\u6d4b\u8bd5\u2026", true);
+      api("account/test", { account: payload }, true).then(function (r) {
+        if (r && r.ok) { showMsg("\u8fde\u63a5\u6b63\u5e38" + (r.remaining == null ? "" : " \u00b7 \u4f59\u989d " + r.remaining + (r.unit || "")), true); }
+        else { showMsg("\u5931\u8d25: " + ((r && r.error) || "\u672a\u77e5\u9519\u8bef"), false); }
+      });
+      return;
+    }
+    api("account/save", { account: payload }, true).then(function (r) {
+      if (!r || !r.ok) { showMsg("\u4fdd\u5b58\u5931\u8d25: " + ((r && r.error) || "\u672a\u77e5\u9519\u8bef"), false); return; }
+      backToList();
+      showMsg((r.action === "updated" ? "\u5df2\u66f4\u65b0" : "\u5df2\u65b0\u589e") + " \u00b7 " + (payload.name || ""), true);
+      loadAccts();
+      setTimeout(fetchState, 300);
+    });
+  }
+  /* 列表态批量删除: 与展开页同一套交互(点页脚按钮进入 -> 逐行勾选 -> 确认), 不再弹系统确认框 */
+  function paintWipe() {
+    /* 外形与显隐都由页脚渲染负责, 这里只同步标题 */
+    var b = $("pageWipe"); if (!b) return;
+    b.title = delMode ? "\u5220\u9664\u5df2\u9009" : "\u4e00\u952e\u5220\u9664";
+    if (pageMode !== "list") b.style.display = "none";
+  }
+  function setPageDel(on) {
+    delMode = !!on;
+    if (!delMode) sel = {};
+    document.body.classList.toggle("is-deleting", delMode);
+    renderList();
+  }
+  function wipeOff() { setPageDel(false); }
+  /* 页脚上的"一键删除": 与展开页的减号同一套交互, 列表滚动不影响它 */
+  function wipeBtn(compact) {
+    return '<button id="pageWipe" class="' + (compact ? "w-9 shrink-0" : "flex-1") + ' py-1.5 rounded-xl border border-black/[0.10] bg-white/75 hover:bg-dangerWash hover:border-danger/40 text-ink2 hover:text-danger active:scale-[0.98] text-[11px] font-semibold transition-all flex items-center justify-center gap-1" title="一键删除">' +
+      '<span class="material-symbols-outlined text-[14px]">delete_sweep</span></button>';
+  }
+  function togglePick(id) {
+    if (!id) return;
+    delMode = true;   /* 直接点圆圈也进删除模式 */
+    sel[id] = !sel[id];
+    document.body.classList.add("is-deleting");
+    renderList();
+  }
+  function confirmDelSel() {
+    var ids = Object.keys(sel).filter(function (k) { return sel[k]; });
+    if (!ids.length) { showMsg("\u5148\u70b9\u884c尾\u5706\u5708\u9009中\u8981\u5220\u7684\u8d26\u6237", false); return; }
+    showMsg("\u6b63\u5728\u5220\u9664 " + ids.length + " \u4e2a\u2026", true);
+    /* 一次请求删一批: 后端在同一个临界区里删完再落盘, 并发多条会互相覆盖 */
+    api("account/delete", { ids: ids }, true).then(function (r) {
+      var n = 0;
+      if (r && r.results) { Object.keys(r.results).forEach(function (k) { if (r.results[k].ok) n++; }); }
+      wipeOff();
+      showMsg("\u5df2\u5220\u9664 " + n + (n < ids.length ? " \u00b7 \u5931\u8d25 " + (ids.length - n) : ""), n === ids.length);
+      loadAccts(); setTimeout(fetchState, 300);
+    });
+  }
+  /* 隐藏区: 头点一下开合; 项上点"展示"先撤销后端隐藏标记, 再点名把它拉回列表。
+     顺序不能颠倒: import 不带 provider_ids 时后端仍按隐藏名单跳过。 */
+  function hidToggle() { hidOpen = !hidOpen; renderList(); fitPage(); }
+  function hidClick(pid) {
+    if (!pid) return;
+    showMsg("正在展示…", true);
+    api("ccsw/update", { provider_id: pid, ignored: false }, true).then(function (r) {
+      if (!r || !r.ok) { showMsg("操作失败: " + ((r && r.error) || "未知错误"), false); return null; }
+      return api("ccsw/import", { provider_ids: [pid] }, true);
+    }).then(function () { return loadAccts(); })
+      .then(function () { showMsg("已展示", true); setTimeout(fetchState, 300); })
+      .catch(function () { showMsg("操作失败", false); });
+  }
+  /* 导入刷新: 直接对接已有接口  /* 导入刷新: 直接对接已有接口, 先扫一遍再导, 结果写页脚状态行 */
+  function doImport(kind) {
+    if (kind === "ccsw") {
+      showMsg("正在扫描 CC-Switch…", true);
+      fetch("/api/ccsw/scan", { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (s) {
+          if (!s || !s.available) { showMsg("未找到 cc-switch.db, 请先开 CC Switch", false); return null; }
+          return api("ccsw/import", {}, true).then(function (r) {
+            if (!r || !r.ok) { showMsg("导入失败: " + ((r && r.error) || "未知错误"), false); return; }
+            /* 什么都没变时得说清原因: 被删过的节点按删除名单不再自动回来,
+               只说"已导入 0"看着就像按钮没生效 */
+            var msg;
+            if (!r.imported && !r.updated) {
+              var ig = (r.ignored || []).length;
+              msg = "没有新节点" + (ig ? " · " + ig + " 个在删除名单里, 不会自动恢复" : " · 源里也没有可导入项");
+            } else {
+              msg = "已导入 " + r.imported + " · 更新 " + r.updated;
+            }
+            showMsg(msg, true);
+            loadAccts(); setTimeout(fetchState, 300);
+          });
+        })
+        .catch(function () { showMsg("CC-Switch 扫描失败", false); });
+      return;
+    }
+    showMsg("正在扫描 OpenCodex…", true);
+    api("ocx/import", { probe: false }, true).then(function (r) {
+      if (!r || !r.ok) { showMsg("导入失败: " + ((r && r.error) || "未检测到配置"), false); return; }
+      showMsg((r.action === "updated" ? "已更新 " : "已导入 ") + (r.base_url || "") + " · " + (r.count || 0) + " 节点", true);
+      loadAccts(); setTimeout(fetchState, 300);
+    });
+  }
+  /* 右上角返回: 列表态退回展开态(不是收起态); 表单/设置态只退一层回列表, 与底部"返回"同义 */
+  function pageBack() {
+    if (pageMode === "form" || pageMode === "settings") { backToList(); return; }
+    setPage(false);
+    setExpanded(true);
+  }
+  function backToList() {
+    pageMode = "list"; cur = null;
+    delMode = false; sel = {};
+    el_show("pageList", true); el_show("pageForm", false); el_show("pageExtras", false);
+    $("pageTitle").textContent = part().title;
+    showMsg("", true);
+    renderList();
+    fitPage();
+  }
+
+  /* ---------- 设置态: 模板里的两个步进器 ---------- */
+  function openSettings() {
+    pageMode = "settings"; cur = null;
+    var s = S.settings || {};
+    pgMinutes = Math.max(1, Number(s.refresh_minutes) || Math.max(1, Math.round((Number(s.refresh_seconds) || 60) / 60)));
+    pgSeconds = Math.max(1, Number(s.timeout) || 10);
+    $("pageTitle").textContent = "\u8f6e\u8be2\u8bbe\u7f6e";
+    $("pageSection").textContent = "\u5168\u5c40\u8bbe\u7f6e";
+    $("pageHint").textContent = "";
+    $("pageFields").innerHTML =
+      stepCard("pgM", "\u81ea\u52a8\u67e5\u8be2\u95f4\u9694\uff08\u5206\u949f\uff09", pgMinutes) +
+      stepCard("pgS", "\u8d85\u65f6\u65f6\u95f4\uff08\u79d2\uff09", pgSeconds);
+    el_show("pageList", false); el_show("pageForm", true); el_show("pageExtras", false);
+    paintBtns([
+      { id: "pgBack3", icon: "arrow_back", label: "\u8fd4\u56de", fn: backToList },
+      { id: "pgSave2", icon: "check_circle", label: "\u4fdd\u5b58", primary: true, fn: saveSettings }
+    ]);
+    bindSteps();
+    fitPage();
+  }
+  function stepCard(id, label, value) {
+    return '<div class="rounded-2xl p-2 bg-white/70 border border-white/90 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col gap-1">' +
+      '<span class="text-[10px] font-semibold text-muted truncate">' + label + '</span>' +
+      '<div class="flex items-center justify-between mt-0.5">' +
+      '<button type="button" class="w-5 h-5 rounded-full bg-black/[0.04] hover:bg-black/[0.08] active:scale-90 flex items-center justify-center text-ink font-bold text-[12px] leading-none transition-all" data-step="-1" data-for="' + id + '">\u2212</button>' +
+      '<input id="' + id + '" class="w-16 bg-transparent border-0 p-0 text-center font-mono text-[12px] font-bold text-ink focus:ring-0" type="number" min="1" value="' + value + '">' +
+      '<button type="button" class="w-5 h-5 rounded-full bg-black/[0.04] hover:bg-black/[0.08] active:scale-90 flex items-center justify-center text-ink font-bold text-[12px] leading-none transition-all" data-step="1" data-for="' + id + '">+</button></div></div>';
+  }
+  function saveSettings() {
+    var m = parseInt(($("pgM") || {}).value, 10), s = parseInt(($("pgS") || {}).value, 10);
+    if (!isFinite(m) || m <= 0 || !isFinite(s) || s <= 0) { showMsg("\u8bf7\u586b\u6b63\u6574\u6570", false); return; }
+    api("settings", { refresh_minutes: m, timeout: s }, true).then(function (r) {
+      if (r && r.ok) { showMsg("\u5df2\u4fdd\u5b58 \u00b7 \u95f4\u9694 " + m + " \u5206\u949f", true); fetchState(); }
+      else { showMsg("\u4fdd\u5b58\u5931\u8d25: " + ((r && r.error) || "\u672a\u77e5\u9519\u8bef"), false); }
+    });
+  }
+  var GLYPHS = ["cloud", "delete", "add", "tune", "sync", "close", "arrow_back", "arrow_forward", "check_circle", "network_check", "download", "code", "save", "chevron_right", "group", "fingerprint", "delete_sweep", "delete_forever", "radio_button_unchecked", "visibility", "expand_more"];
+  var scanTag = null;
+  function scanGlyphs() {
+    if (MODE !== "preview") return;
+    if (!scanTag) { scanTag = document.createElement("span"); scanTag.className = "hidden"; document.body.appendChild(scanTag); }
+    scanTag.textContent = GLYPHS.join(" ");
+  }
+  /* ---------- 绑定 ---------- */
+  function bindPage() {
+    var tabs = $("pageTabs");
+    if (tabs) tabs.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-kind]"); if (!b) return;
+      S.tab = b.getAttribute("data-kind");
+      pageMode = "list"; cur = null;
+      delMode = false; sel = {};
+      el_show("pageList", true); el_show("pageForm", false); el_show("pageExtras", false);
+      $("pageTitle").textContent = part().title;
+      paintTabs(); showMsg("", true); renderList(); fitPage();
+    });
+    var list = $("pageList");
+    if (list) list.addEventListener("click", function (e) {
+      var hidT = e.target.closest("[data-hid-toggle]");
+      if (hidT) { hidToggle(); return; }
+      var hid = e.target.closest("[data-hid]");
+      if (hid) { hidClick(hid.getAttribute("data-hid")); return; }
+      var pick = e.target.closest("[data-pick]");
+      if (pick) { togglePick(pick.getAttribute("data-pick")); return; }
+      var imp = e.target.closest("[data-import]");
+      if (imp) { doImport(imp.getAttribute("data-import")); return; }
+      var md = e.target.closest("[data-model]");
+      if (md) { openModel(md.getAttribute("data-model")); return; }
+      var add = e.target.closest("[data-add]");
+      if (add) { openForm(null, add.getAttribute("data-add")); return; }
+      var acc = e.target.closest("[data-acc]");
+      if (acc) {
+        if (delMode) { togglePick(acc.getAttribute("data-acc")); return; }   /* 删除模式里点整行就是勾选 */
+        var hit = pageRows.filter(function (a) { return a && a.id === acc.getAttribute("data-acc"); })[0];
+        if (hit) openForm(hit, hit.type);
+      }
+    });
+    if ($("pageClose")) $("pageClose").addEventListener("click", pageBack);
+    var footBox = $("pageFoot");   /* 页脚内容随渲染重建, 用委托绑 */
+    if (footBox) footBox.addEventListener("click", function (e) {
+      /* "导入刷新"气泡也挂在页脚上, 委托要一并认它 —— 早先只认删除按钮,
+         CC-SW/OCX 两个气泡点了完全没反应 */
+      var imp = e.target.closest("[data-import]");
+      if (imp) { doImport(imp.getAttribute("data-import")); return; }
+      if (!e.target.closest("#pageWipe")) return;
+      if (delMode) { confirmDelSel(); return; }
+      setPageDel(true);
+      showMsg("\u70b9\u6574\u884c\u6216\u884c\u5c3e\u5706\u5708\u9009\u4e2d, \u518d\u70b9\u4e0b\u65b9\u786e\u8ba4", true);
+    });
+    window.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && S.page) pageBack();
+    });
+    /* 窗口尺寸变了重新贴合内容(不是反过来) */
+    window.addEventListener("resize", function () { if (S.page) fitPage(); });
+    API_STUBS.openAddModal = function () { setPage(true, S.tab || "official"); };
+    paintTabs();   /* 模板里空页签默认是选中态, 打开前先把状态抹平 */
+    API_STUBS.openEditModal = function () { /* 行点击不开编辑: 统一在接入页改, 免得两处表单打架 */ };
+    API_STUBS.testAccount = function () { if (pageMode === "form") submitAcc(true); };
+    API_STUBS.saveAccount = function () { if (pageMode === "form") submitAcc(false); };
+    API_STUBS.saveSettings = saveSettings;
+  }
+  window.BalanceFloat = { state: S, stubs: API_STUBS, refresh: fetchState, setExpanded: setExpanded };
+  $("btnAdd").addEventListener("click", function () { API_STUBS.openAddModal(); });
+  $("btnDel").addEventListener("click", function () { setDelMode(true); });
+  $("btnOk").addEventListener("click", confirmDel);
+  $("rowList").addEventListener("click", function (e) {
+    if (suppressClick) { suppressClick = false; return; }
+    var row = e.target.closest("[data-row]");
+    if (!row) return;
+    var i = Number(row.getAttribute("data-row"));
+    if (delMode) {
+      var rid = S.accounts[i] && S.accounts[i].id;
+      if (!rid) return;
+      sel[rid] = !sel[rid];
+      renderRows();
+      return;
+    }
+    var op = e.target.closest("[data-op]");
+    if (op) { e.stopPropagation(); API_STUBS.moveRow(i, op.getAttribute("data-op") === "up" ? -1 : 1); return; }
+    API_STUBS.openEditModal(i);
+  });
+
+  /* ---------- 启动 ---------- */
+  var readySent = false;
+  function notifyReady() {
+    var api = bridge();
+    if (!api) return;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        if (readySent) return;
+        readySent = true;
+        if (typeof api.ready === "function") api.ready();
+        reportSize();
+      });
+    });
+  }
+  function boot() {
+    whenBridge(2500).then(function (api) {
+      var forced = /(?:^|[?&])rt=1(?:&|$)/.test(location.search);
+      if (!api && !forced) { MODE = "preview"; document.body.classList.add("preview"); return; }
+      MODE = "rt";
+      document.body.classList.add("rt", "is-collapsed");
+      if (forced) document.title = "rt(sim)";
+      bindChrome();
+      bindResize();
+      bindPage();
+      render();
+      fetchState();
+      setInterval(fetchState, 30000);
+      notifyReady();
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body></html>

@@ -1,0 +1,56 @@
+{
+  "_readme": "全站变量表。片段里写 @color.ink / @size.pageW / @shadow.okGlow 这种占位, 组装时展开成本文件的值。改这里 = 全站生效, 刷新页面即可; 想只改一处就给它单开一个名字。下划线开头的键是注释行, 不参与展开。size 里只写数字, 要带单位就写成 @size.pageWpx。",
+  "color": {
+    "_文字": "",
+    "ink": "#1d1d1f",
+    "ink2": "#6e6e73",
+    "muted": "#86868b",
+    "faint": "#aeaeb2",
+    "_主色与状态": "",
+    "accent": "#0071e3",
+    "accentHover": "#0077ed",
+    "accentLight": "#40a9ff",
+    "danger": "#ff3b30",
+    "dangerLight": "#ff6b63",
+    "dangerWash": "#ffebea",
+    "ok": "#34c759",
+    "okText": "#248a3d",
+    "_类型色": "",
+    "iris": "#5856d6",
+    "irisLight": "#af52de",
+    "azure": "#0284c7",
+    "azureLight": "#38bdf8",
+    "grass": "#16a34a",
+    "flame": "#ea580c",
+    "flameDeep": "#f97316",
+    "flameLight": "#fb923c",
+    "_官方接口品牌色": "",
+    "deepseek": "#4d6bfe",
+    "deepseekLight": "#7f97ff",
+    "kimi": "#1d1d1f",
+    "kimiLight": "#6e6e73",
+    "glm": "#3859ff",
+    "glmLight": "#7d92ff",
+    "glmAlt": "#3d5afe"
+  },
+  "shadow": {
+    "_说明": "Tailwind 任意值里的发光色, 例如 shadow-[0_0_4px_@shadow.okGlow]",
+    "okGlow": "rgba(52,199,89,0.6)",
+    "dangerGlow": "rgba(255,59,48,0.55)",
+    "accentGlow": "rgba(0,113,227,0.28)"
+  },
+  "size": {
+    "_说明": "窗口卡片尺寸(只写数字)。片段里 @size.pageW 拿到 360, @size.pageWpx 拿到 360px; 两边同一个源。",
+    "collapsedW": 212,
+    "collapsedH": 114,
+    "expandedW": 248,
+    "expandedH": 248,
+    "pageW": 360,
+    "pageH": 420
+  },
+  "motion": {
+    "_说明": "形变动画: 曲线与时长。改时长只动这里。",
+    "curve": "cubic-bezier(0.16, 1, 0.3, 1)",
+    "duration": "380ms"
+  }
+}

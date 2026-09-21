@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OCX 端口指标</title>
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --card: rgba(22, 26, 32, 0.92);
+      --ink: #f2f4f8;
+      --muted: #8b93a1;
+      --line: rgba(255,255,255,0.08);
+      --accent: #3b9eff;
+      --ok: #34c759;
+      --warn: #ff9f0a;
+      --bad: #ff453a;
+      --mono: "JetBrains Mono", "Cascadia Code", ui-monospace, Consolas, monospace;
+      --sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(59,158,255,0.12), transparent 50%),
+        radial-gradient(900px 500px at 90% 110%, rgba(52,199,89,0.08), transparent 45%),
+        var(--bg);
+      padding: 20px;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; display: grid; gap: 14px; }
+    header {
+      display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    h1 { font-size: 18px; font-weight: 650; letter-spacing: 0.02em; }
+    .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 12px; border-radius: 999px;
+      border: 1px solid var(--line); background: rgba(255,255,255,0.03);
+      font-family: var(--mono); font-size: 12px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(52,199,89,0.7); }
+    .dot.bad { background: var(--bad); }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 720px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 16px;
+      backdrop-filter: blur(10px);
+    }
+    .card.wide { grid-column: 1 / -1; }
+    .label { color: var(--muted); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .value {
+      margin-top: 8px; font-family: var(--mono); font-size: 22px; font-weight: 600;
+      letter-spacing: -0.02em; line-height: 1.15; word-break: break-all;
+    }
+    .value.sm { font-size: 15px; font-weight: 500; }
+    .hint { margin-top: 6px; color: var(--muted); font-size: 11px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .row.between { justify-content: space-between; }
+    label { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+    input[type="number"], select {
+      background: rgba(0,0,0,0.35); color: var(--ink);
+      border: 1px solid var(--line); border-radius: 8px;
+      padding: 6px 8px; font-family: var(--mono); font-size: 12px; width: 72px;
+    }
+    button {
+      border: 1px solid rgba(59,158,255,0.35);
+      background: rgba(59,158,255,0.12);
+      color: var(--ink);
+      border-radius: 10px;
+      padding: 7px 12px; font-size: 12px; cursor: pointer;
+    }
+    button:hover { background: rgba(59,158,255,0.22); }
+    canvas { width: 100%; height: 180px; display: block; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-family: var(--mono); font-size: 12px; }
+    th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); color: var(--muted); }
+    td { color: var(--ink); }
+    th { font-weight: 500; font-size: 11px; }
+    .foot { color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .badge {
+      font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 999px;
+      border: 1px solid var(--line); color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>OCX · 单端口合计指标</h1>
+        <div class="sub">只看一个 API 端口总量，不按模型分类 · 数据来自本机 usage.jsonl，低频轮询</div>
+      </div>
+      <div class="pill"><span id="liveDot" class="dot"></span><span id="liveText">连接中…</span></div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">端点</div>
+        <div id="endpoint" class="value sm">—</div>
+        <div class="hint">整个 OpenCodex 代理端口</div>
+      </div>
+      <div class="card">
+        <div class="label">今日请求</div>
+        <div id="reqs" class="value">—</div>
+        <div class="hint">成功 <span id="okReqs">—</span></div>
+      </div>
+      <div class="card">
+        <div class="label">今日 Token</div>
+        <div id="tokens" class="value">—</div>
+        <div class="hint">入 <span id="tokIn">—</span> · 出 <span id="tokOut">—</span></div>
+      </div>
+      <div class="card">
+        <div class="label">平均延迟 / TTFT</div>
+        <div id="latency" class="value sm">—</div>
+        <div class="hint">整端口平均，非单模型</div>
+      </div>
+
+      <div class="card wide">
+        <div class="row between">
+          <div>
+            <div class="label">输出 Token 速度（滚动曲线）</div>
+            <div class="hint">窗口 <span id="winSec">30</span>s · 采样 <span id="ivSec">3</span>s · 过期点自动丢弃</div>
+          </div>
+          <div class="value" id="curRate" style="margin:0">— tok/s</div>
+        </div>
+        <canvas id="chart" width="860" height="180"></canvas>
+      </div>
+
+      <div class="card wide">
+        <div class="row between">
+          <div class="label">接口调节（不高频打 OCX）</div>
+          <span class="badge" id="cfgHint">interval ≥ 1s</span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label>轮询间隔 s
+            <input id="inInterval" type="number" min="1" max="60" step="0.5" value="3" />
+          </label>
+          <label>曲线窗口 s
+            <input id="inWindow" type="number" min="10" max="120" step="1" value="30" />
+          </label>
+          <label>采集
+            <select id="inEnabled">
+              <option value="true">开</option>
+              <option value="false">关</option>
+            </select>
+          </label>
+          <button id="btnSave">保存配置</button>
+          <button id="btnRefresh">立即刷新</button>
+        </div>
+        <div class="hint" style="margin-top:8px">
+          后端只读 <code>~/.opencodex/usage.jsonl</code>，不会按间隔请求 OCX HTTP；列表探测才访问 <code>/v1</code>。
+        </div>
+      </div>
+
+      <div class="card wide">
+        <div class="label">最近速度点</div>
+        <table>
+          <thead>
+            <tr><th>时间</th><th>tok/s</th><th>输出 tokens</th><th>请求</th></tr>
+          </thead>
+          <tbody id="ptBody"><tr><td colspan="4">暂无</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="foot" id="foot">—</div>
+  </div>
+
+  <script>
+    var API = new URLSearchParams(location.search).get("api") || "";
+    if (!API) {
+      // 默认同源；也可 ?api=http://127.0.0.1:8799
+      API = location.origin;
+    }
+    API = API.replace(/\/$/, "");
+
+    var chart = document.getElementById("chart");
+    var ctx = chart.getContext("2d");
+
+    function fmtInt(n) {
+      if (n == null || n === "—") return "—";
+      var x = Number(n);
+      if (!isFinite(x)) return "—";
+      return Math.round(x).toLocaleString("zh-CN");
+    }
+    function fmtMs(n) {
+      if (n == null) return "—";
+      var x = Number(n);
+      if (!isFinite(x)) return "—";
+      return x >= 1000 ? (x / 1000).toFixed(2) + " s" : x.toFixed(0) + " ms";
+    }
+    function setLive(ok, text) {
+      var d = document.getElementById("liveDot");
+      d.className = "dot " + (ok ? "ok" : "bad");
+      document.getElementById("liveText").textContent = text;
+    }
+
+    function drawChart(points, windowSec) {
+      var w = chart.width, h = chart.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(255,255,255,0.02)";
+      ctx.fillRect(0, 0, w, h);
+      // grid
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 1;
+      for (var i = 1; i < 4; i++) {
+        var y = (h * i) / 4;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+      if (!points || !points.length) {
+        ctx.fillStyle = "rgba(255,255,255,0.25)";
+        ctx.font = "12px sans-serif";
+        ctx.fillText("等待采样…", 12, h / 2);
+        return;
+      }
+      var maxV = 0;
+      points.forEach(function (p) { maxV = Math.max(maxV, p.out_tok_per_s || 0); });
+      if (maxV <= 0) maxV = 1;
+      var n = points.length;
+      var padL = 8, padR = 8, padT = 12, padB = 18;
+      var iw = w - padL - padR, ih = h - padT - padB;
+      // area + line
+      ctx.beginPath();
+      points.forEach(function (p, i) {
+        var x = padL + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+        var y = padT + ih - (Math.min(p.out_tok_per_s, maxV) / maxV) * ih;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = "#3b9eff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.lineTo(padL + iw, padT + ih);
+      ctx.lineTo(padL, padT + ih);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(59,158,255,0.12)";
+      ctx.fill();
+      // labels
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.font = "11px monospace";
+      ctx.fillText("max " + maxV.toFixed(1) + " tok/s", padL, 11);
+      ctx.fillText(points[0].t, padL, h - 4);
+      var last = points[points.length - 1].t;
+      ctx.fillText(last, w - padR - ctx.measureText(last).width, h - 4);
+    }
+
+    function render(data) {
+      var t = data.today || {};
+      var sp = data.speed || {};
+      document.getElementById("endpoint").textContent = data.endpoint || "—";
+      document.getElementById("reqs").textContent = fmtInt(t.requests);
+      document.getElementById("okReqs").textContent = fmtInt(t.ok_requests);
+      document.getElementById("tokens").textContent = fmtInt(t.tokens_total);
+      document.getElementById("tokIn").textContent = fmtInt(t.tokens_input);
+      document.getElementById("tokOut").textContent = fmtInt(t.tokens_output);
+      document.getElementById("latency").textContent =
+        (t.avg_latency_ms != null ? fmtMs(t.avg_latency_ms) : "—") +
+        " / " +
+        (t.avg_ttft_ms != null ? fmtMs(t.avg_ttft_ms) : "—");
+      document.getElementById("curRate").textContent =
+        (sp.current_out_tok_per_s != null ? sp.current_out_tok_per_s : "—") + " tok/s";
+      document.getElementById("winSec").textContent = sp.window_seconds != null ? sp.window_seconds : "—";
+      document.getElementById("ivSec").textContent = sp.interval_seconds != null ? sp.interval_seconds : "—";
+      drawChart(sp.points || [], sp.window_seconds || 30);
+
+      var body = document.getElementById("ptBody");
+      var pts = (sp.points || []).slice().reverse().slice(0, 8);
+      if (!pts.length) {
+        body.innerHTML = "<tr><td colspan='4'>暂无</td></tr>";
+      } else {
+        body.innerHTML = pts.map(function (p) {
+          return "<tr><td>" + p.t + "</td><td>" + p.out_tok_per_s +
+            "</td><td>" + fmtInt(p.output_tokens) + "</td><td>" + p.requests + "</td></tr>";
+        }).join("");
+      }
+
+      var cfg = data.config || {};
+      if (document.activeElement.id !== "inInterval" && cfg.interval_seconds != null)
+        document.getElementById("inInterval").value = cfg.interval_seconds;
+      if (document.activeElement.id !== "inWindow" && cfg.window_seconds != null)
+        document.getElementById("inWindow").value = cfg.window_seconds;
+      if (cfg.enabled != null) document.getElementById("inEnabled").value = cfg.enabled ? "true" : "false";
+
+      document.getElementById("foot").textContent =
+        "day=" + (data.day || "—") +
+        " · poll#" + (data.poll_count || 0) +
+        " · " + (data.ok ? "账本正常" : ("账本异常: " + (data.error || ""))) +
+        " · API " + API + "/api/ocx/metrics";
+
+      setLive(!!data.ok, data.ok ? "在线 · 账本同步" : "账本异常");
+    }
+
+    function load() {
+      return fetch(API + "/api/ocx/metrics", { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(render)
+        .catch(function (e) {
+          setLive(false, "无法连接后端");
+          document.getElementById("foot").textContent =
+            "请求失败: " + e + "。请先启动 serve_ocx_demo.py 或悬浮窗，或用 ?api=http://127.0.0.1:端口";
+        });
+    }
+
+    document.getElementById("btnRefresh").addEventListener("click", function () { load(); });
+    document.getElementById("btnSave").addEventListener("click", function () {
+      var body = {
+        interval_seconds: Number(document.getElementById("inInterval").value),
+        window_seconds: Number(document.getElementById("inWindow").value),
+        enabled: document.getElementById("inEnabled").value === "true"
+      };
+      fetch(API + "/api/ocx/metrics/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          document.getElementById("cfgHint").textContent = j.ok ? "已保存" : (j.error || "保存失败");
+          return load();
+        })
+        .catch(function (e) {
+          document.getElementById("cfgHint").textContent = "保存失败（浮窗 POST 需 X-Api-Token；demo 服务无需）";
+        });
+    });
+
+    load();
+    setInterval(load, 2000);
+  </script>
+</body>
+</html>
