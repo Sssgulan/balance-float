@@ -2,6 +2,10 @@
 
 桌面悬浮窗（pywebview + WebView2，非纯标准库），汇总各 API 账户余额，并展示本机 CC Switch 今日流量。
 
+![收起状态](docs/screenshot-collapsed.png)
+
+![展开状态](docs/screenshot-expanded.png)
+
 ## 运行
 
 ```
